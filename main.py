@@ -113,7 +113,7 @@ class ImprovedPropertyScraper:
         """Attempt to scrape using requests and BeautifulSoup"""
         try:
             if url is None:
-                url = f"{self.base_url}?page={page}"
+                url = self.base_url  # Use the full base_url with all query params, do not append ?page={page}
             
             # Skip if this URL has already been scraped
             if url in self.scraped_pages:
@@ -177,7 +177,7 @@ class ImprovedPropertyScraper:
             driver = webdriver.Chrome(options=options)
             
             if url is None:
-                url = f"{self.base_url}?page={page}"
+                url = self.base_url  # Use the full base_url with all query params, do not append ?page={page}
             
             # Skip if this URL has already been scraped
             if url in self.scraped_pages:
@@ -191,6 +191,14 @@ class ImprovedPropertyScraper:
             
             # Wait for page to load dynamically
             time.sleep(5)  # Base wait
+            
+            # Verify sort parameters are applied (debug log)
+            current_url = driver.current_url
+            if 'sorttype=' in url and 'sorttype=' not in current_url:
+                logger.warning(f"Sort parameter was lost during initial navigation: {url} -> {current_url}")
+                # Try to navigate again with the sort parameter explicitly added
+                driver.get(url)
+                time.sleep(3)
             
             self.scraped_pages.add(url)  # Mark as scraped
             
@@ -519,7 +527,7 @@ class ImprovedPropertyScraper:
         return False
     
     def get_next_page_url(self, soup, current_url, current_page):
-        """Extract the URL of the next page"""
+        """Extract the URL of the next page while preserving all query parameters"""
         # First try to find a direct link to the next page
         for selector in self.pagination_selectors:
             try:
@@ -530,22 +538,53 @@ class ImprovedPropertyScraper:
                     if next_url.startswith('/'):
                         parsed_url = urlparse(current_url)
                         next_url = f"{parsed_url.scheme}://{parsed_url.netloc}{next_url}"
+                    
+                    # If the next URL doesn't have sorttype but original does, add it
+                    if 'sorttype=' in current_url and 'sorttype=' not in next_url:
+                        parsed_current = urlparse(current_url)
+                        parsed_next = urlparse(next_url)
+                        
+                        # Extract sorttype from current URL
+                        current_query = {k: v for k, v in [param.split('=') for param in parsed_current.query.split('&')] if param}
+                        
+                        # Preserve important query parameters
+                        for param in ['sorttype', 'sort', 'order']:
+                            if param in current_query and param not in next_url:
+                                next_url = self._add_query_param(next_url, param, current_query[param])
+                    
                     return next_url
             except Exception:
                 continue
         
         # If no direct link found, construct the URL with page parameter
-        # Check if current URL already has query parameters
-        if '?' in current_url:
-            if 'page=' in current_url:
-                return re.sub(r'page=\d+', f'page={current_page + 1}', current_url)
-            else:
-                return f"{current_url}&page={current_page + 1}"
-        else:
-            return f"{current_url}?page={current_page + 1}"
+        # While preserving all other query parameters
+        from urllib.parse import parse_qsl, urlencode
+        parsed_url = urlparse(current_url)
+        path = parsed_url.path
+        query_dict = dict(parse_qsl(parsed_url.query))
+        
+        # Update or add page parameter
+        query_dict['page'] = str(current_page + 1)
+        
+        # Reconstruct query string
+        query_string = urlencode(query_dict)
+        
+        return f"{parsed_url.scheme}://{parsed_url.netloc}{path}?{query_string}"
     
+    def _add_query_param(self, url, param_name, param_value):
+        """Helper method to add a query parameter to a URL"""
+        if '?' in url:
+            return f"{url}&{param_name}={param_value}"
+        else:
+            return f"{url}?{param_name}={param_value}"
+
     def click_next_page_selenium(self, driver):
-        """Click on the next page button using Selenium"""
+        """Click on the next page button using Selenium, preserving query parameters"""
+        original_url = driver.current_url
+        parsed_original = urlparse(original_url)
+        original_query = {k: v for k, v in [param.split('=') if '=' in param else (param, '') 
+                         for param in parsed_original.query.split('&')] if k}
+        
         for selector in self.pagination_selectors:
             try:
                 next_buttons = driver.find_elements(By.CSS_SELECTOR, selector)
@@ -556,7 +595,21 @@ class ImprovedPropertyScraper:
                         logger.info("Clicking on next page button")
                         next_buttons[0].click()
                         # Wait for page to load
-                        time.sleep(3)  
+                        time.sleep(3)
+                        
+                        # Check if important parameters are preserved
+                        new_url = driver.current_url
+                        parsed_new = urlparse(new_url)
+                        new_query = {k: v for k, v in [param.split('=') if '=' in param else (param, '') 
+                                   for param in parsed_new.query.split('&')] if k}
+                        
+                        # Check if sorttype was lost
+                        if 'sorttype' in original_query and 'sorttype' not in new_query:
+                            logger.info("Sort parameter was lost during navigation, preserving it")
+                            preserved_url = self._add_query_param(new_url, 'sorttype', original_query['sorttype'])
+                            driver.get(preserved_url)
+                            time.sleep(3)
+                        
                         return True
             except Exception as e:
                 logger.debug(f"Error clicking next page with selector {selector}: {str(e)}")
@@ -566,7 +619,7 @@ class ImprovedPropertyScraper:
         """Main scraping method with multiple strategies and auto pagination"""
         total_properties = 0
         page = 1
-        next_url = self.base_url  # Start with base URL
+        next_url = self.base_url  # Start with full base_url (including query params)
         retries = 0
         
         while next_url and (max_pages is None or page <= max_pages):
@@ -750,24 +803,47 @@ def handle_get_latest_listing_with_contact(url):
     try:
         logger.info(f"Getting latest listing from: {url}")
         
-        # Create a scraper and get just one page
+        # Always ensure we're sorting by newest
+        if '?' in url:
+            if 'sorttype=' not in url:
+                url = f"{url}&sorttype=3"  # Add sort by newest
+            else:
+                # Replace any existing sorttype with sorttype=3
+                url = re.sub(r'sorttype=\d+', 'sorttype=3', url)
+        else:
+            url = f"{url}?sorttype=3"  # Add sort by newest
+        
+        logger.info(f"Using URL with sort parameter: {url}")
+        
         scraper = ImprovedPropertyScraper(url)
-        
-        # Try requests first, then selenium if needed
-        result = scraper.scrape_with_requests()
-        if not result and not scraper.properties:
-            result = scraper.scrape_with_selenium()
-        
-        # Check if we got any properties
-        if not scraper.properties:
+        next_url = scraper.base_url
+        page = 1
+
+        # Loop until we find a non-featured property or run out of pages
+        while next_url:
+            # try requests first, fallback to selenium
+            result = scraper.scrape_with_requests(url=next_url, page=page)
+            if result is False:
+                result = scraper.scrape_with_selenium(url=next_url, page=page)
+            
+            # advance or stop
+            if isinstance(result, str):
+                next_url = result
+                page += 1
+            else:
+                next_url = None
+            
+            # check for non-featured
+            non_featured = [p for p in scraper.properties if not p.get('is_featured', False)]
+            if non_featured:
+                latest_property = non_featured[0]
+                break
+        else:
             return {
                 "success": False,
-                "message": "No properties found",
+                "message": "No non-featured properties found",
                 "url": url
             }
-        
-        # Get the first (latest) property - now including featured properties
-        latest_property = scraper.properties[0]
         
         # If the property has a URL, get contact info
         if 'url' in latest_property and latest_property['url']:
@@ -837,8 +913,19 @@ def handle_scrape_multiple_listings(url, num_listings=10):
                 "url": url
             }
         
-        # Limit to requested number - now including featured properties
-        limited_properties = scraper.properties[:num_listings]
+        # Filter out featured properties
+        non_featured_properties = [p for p in scraper.properties if not p.get('is_featured', False)]
+        
+        # If no non-featured properties found
+        if not non_featured_properties:
+            return {
+                "success": False,
+                "message": "No non-featured properties found",
+                "url": url
+            }
+        
+        # Limit to requested number
+        limited_properties = non_featured_properties[:num_listings]
         
         return {
             "success": True,
