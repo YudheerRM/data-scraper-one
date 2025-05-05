@@ -626,25 +626,37 @@ def extract_agent_contact_info(url, headless=False, timeout=30):
 # Helper function to add CORS headers to the response
 def add_cors_headers(res):
     """Add CORS headers to allow cross-origin requests"""
-    try:
-        # Ensure headers are always applied, even if called multiple times
-        res.set_header('Access-Control-Allow-Origin', '*')
-        res.set_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        res.set_header('Access-Control-Allow-Headers', 'Content-Type, *') # Allow any header
-        res.set_header('Access-Control-Expose-Headers', 'Content-Disposition') # Expose Content-Disposition for file downloads
-    except AttributeError:
-        # Fallback for potential different response objects (like MockResponse)
+    # Simplify the header application logic
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, *',
+        'Access-Control-Expose-Headers': 'Content-Disposition'
+    }
+    
+    # Try all possible methods to set headers
+    for key, value in headers.items():
+        # Method 1: set_header
+        if hasattr(res, 'set_header'):
+            try:
+                res.set_header(key, value)
+            except Exception:
+                pass
+                
+        # Method 2: headers dictionary
         if hasattr(res, 'headers'):
-            res.headers['Access-Control-Allow-Origin'] = '*'
-            res.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-            res.headers['Access-Control-Allow-Headers'] = 'Content-Type, *'
-            res.headers['Access-Control-Expose-Headers'] = 'Content-Disposition'
-    # also support .header() on some response objects
-    if hasattr(res, 'header'):
-        res.header('Access-Control-Allow-Origin', '*')
-        res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        res.header('Access-Control-Allow-Headers', 'Content-Type, *')
-        res.header('Access-Control-Expose-Headers', 'Content-Disposition')
+            try:
+                res.headers[key] = value
+            except Exception:
+                pass
+                
+        # Method 3: header method
+        if hasattr(res, 'header'):
+            try:
+                res.header(key, value)
+            except Exception:
+                pass
+                
     return res
 
 def handle_scrape_multiple_listings(url, num_listings=10):
@@ -763,7 +775,7 @@ def user_main(req, res):
     # handle preflight
     if getattr(req, 'method', '').upper() == 'OPTIONS':
         logger.info("Handling OPTIONS preflight request")
-        return res.send('', 204)
+        return add_cors_headers(res).send('', 204)  # Apply headers again before returning
 
     try:
         body = req.body or {}
@@ -777,16 +789,16 @@ def user_main(req, res):
             
             # Always return JSON for multiple listings (includes base64 data if Excel)
             logger.info("Sending multiple listings result as JSON")
-            return res.json(result)
+            return add_cors_headers(res).json(result)  # Apply headers again before returning
         else:
             # Handle latest listing mode
             result = handle_get_latest_listing_with_contact(url)
             logger.info("Sending latest listing result as JSON")
-            return res.json(result)
+            return add_cors_headers(res).json(result)  # Apply headers again before returning
 
     except Exception as e:
         logger.error(f"Error in main function: {str(e)}", exc_info=True) 
-        return res.json({
+        return add_cors_headers(res).json({  # Apply headers again before returning
             "success": False,
             "message": f"Server error: {str(e)}"
         }, 500)
