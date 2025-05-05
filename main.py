@@ -585,7 +585,7 @@ class ImprovedPropertyScraper:
 # (originally from extract_agent_info.py)
 #############################################################################
 
-def extract_agent_contact_info(url, headless=False, timeout=30):
+def extract_agent_contact_info(url, headless=True, timeout=30):
     """
     Extract agent contact information from a property listing page
     """
@@ -595,8 +595,11 @@ def extract_agent_contact_info(url, headless=False, timeout=30):
         options = Options()
         if headless:
             options.add_argument("--headless")
-        # ...existing option arguments...
-
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--window-size=1920,1080")
+        
         # Use Service with CHROMEDRIVER_PATH or default system path
         chromedriver_path = os.environ.get("CHROMEDRIVER_PATH", "/usr/bin/chromedriver")
         try:
@@ -610,13 +613,201 @@ def extract_agent_contact_info(url, headless=False, timeout=30):
                 "error": "Chromedriver not found or not executable",
             }
 
-        # ...existing code for navigation and extraction...
+        # Navigate to the page
+        logger.info(f"Navigating to: {url}")
+        driver.get(url)
+        
+        # Wait for the page to load
+        WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
+        
+        # Extract basic info first
+        contact_info = {
+            "url": url,
+            "extracted_at": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        # Try to click on "Show contact" button if it exists
+        try:
+            # Try different selectors for the contact button
+            button_selectors = [
+                "//button[contains(text(), 'Show contact number')]",
+                "//button[contains(text(), 'Show number')]",
+                ".contact-agent-button",
+                ".listing-contact__show-number",
+                "button.btn.outline"
+            ]
+            
+            for selector in button_selectors:
+                try:
+                    if selector.startswith("//"):  # XPath
+                        buttons = driver.find_elements(By.XPATH, selector)
+                    else:  # CSS
+                        buttons = driver.find_elements(By.CSS_SELECTOR, selector)
+                    
+                    if buttons and len(buttons) > 0:
+                        # Scroll to the button
+                        driver.execute_script("arguments[0].scrollIntoView(true);", buttons[0])
+                        time.sleep(1)
+                        
+                        # Click the button
+                        buttons[0].click()
+                        logger.info(f"Clicked contact button with selector: {selector}")
+                        time.sleep(3)  # Wait for contact info to appear
+                        break
+                except Exception as btn_err:
+                    logger.debug(f"Could not click button with selector {selector}: {btn_err}")
+        
+            # Now try to extract contact information
+            # Look for phone numbers
+            phone_pattern = re.compile(r'(?:\+\d{1,3}[-\.\s]?)?(?:\(?\d{3}\)?[-\.\s]?){1,2}\d{3,4}[-\.\s]?\d{3,4}')
+            page_text = driver.page_source
+            phone_matches = phone_pattern.findall(page_text)
+            
+            if phone_matches:
+                # Filter to likely phone numbers and limit to first 3
+                contact_info['phone_numbers'] = [p for p in phone_matches if len(re.sub(r'\D', '', p)) >= 9][:3]
+            
+            # Look for agent name
+            try:
+                agent_selectors = ['.agent-name', '.listing-agent-name', '.agent-details__name']
+                for selector in agent_selectors:
+                    elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                    if elements and len(elements) > 0:
+                        contact_info['agent_name'] = elements[0].text.strip()
+                        break
+            except Exception:
+                pass
+                
+        except Exception as e:
+            logger.error(f"Error extracting contact info: {str(e)}")
+            
+        return contact_info
+            
     except Exception as e:
         logger.error(f"Error during extraction: {str(e)}")
         return {"error": str(e), "url": url}
     finally:
         if driver:
             driver.quit()
+
+def handle_get_latest_listing_with_contact(url):
+    """
+    Get the latest property listing with contact info
+    
+    Args:
+        url (str): URL of the property listings page
+        
+    Returns:
+        dict: Latest property listing with contact info
+    """
+    try:
+        logger.info(f"Getting latest listing from: {url}")
+        
+        # Create a scraper and get just one page
+        scraper = ImprovedPropertyScraper(url)
+        
+        # Try requests first, then selenium if needed
+        result = scraper.scrape_with_requests()
+        if not result and not scraper.properties:
+            result = scraper.scrape_with_selenium()
+        
+        # Check if we got any properties
+        if not scraper.properties:
+            return {
+                "success": False,
+                "message": "No properties found",
+                "url": url
+            }
+        
+        # Get the first (latest) property
+        latest_property = scraper.properties[0]
+        
+        # If the property has a URL, get contact info
+        if 'url' in latest_property and latest_property['url']:
+            property_url = latest_property['url']
+            
+            # Make sure URL is absolute
+            if not property_url.startswith('http'):
+                parsed_base = urlparse(url)
+                base_url = f"{parsed_base.scheme}://{parsed_base.netloc}"
+                property_url = f"{base_url}{property_url}"
+                
+            # Extract contact info
+            contact_info = extract_agent_contact_info(property_url, headless=True)
+            
+            # Add contact info to the property data
+            if contact_info:
+                if 'error' not in contact_info:
+                    latest_property['contact_info'] = contact_info
+                else:
+                    latest_property['contact_info_error'] = contact_info['error']
+        
+        return {
+            "success": True,
+            "property": latest_property
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in handle_get_latest_listing_with_contact: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error getting latest listing: {str(e)}",
+            "url": url
+        }
+
+def handle_scrape_multiple_listings(url, num_listings=10):
+    """
+    Scrape multiple property listings
+    
+    Args:
+        url (str): URL of the property listings page
+        num_listings (int): Number of listings to scrape
+        
+    Returns:
+        dict: Scraped property listings
+    """
+    try:
+        logger.info(f"Scraping {num_listings} listings from: {url}")
+        
+        # Create temporary file for output
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.json') as tmp:
+            temp_output = tmp.name
+        
+        # Create a scraper with the temp output file
+        scraper = ImprovedPropertyScraper(url, output_file=temp_output)
+        
+        # Calculate how many pages to scrape based on average 10 listings per page
+        estimated_pages = max(1, int(num_listings / 10) + 1)
+        
+        # Scrape the pages
+        scraper.scrape(max_pages=estimated_pages)
+        
+        # Check if we got any properties
+        if not scraper.properties:
+            return {
+                "success": False,
+                "message": "No properties found",
+                "url": url
+            }
+        
+        # Limit to requested number
+        limited_properties = scraper.properties[:num_listings]
+        
+        return {
+            "success": True,
+            "count": len(limited_properties),
+            "properties": limited_properties
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in handle_scrape_multiple_listings: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error scraping listings: {str(e)}",
+            "url": url
+        }
 
 #############################################################################
 # SECTION 3: APPWRITE FUNCTION COMPONENTS
