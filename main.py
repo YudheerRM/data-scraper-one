@@ -794,8 +794,14 @@ def setup_chrome_for_serverless():
 
 # Replace the original main with a renamed version for user logic
 def user_main(req, res):
+    # ensure CORS headers are always set
+    res = add_cors_headers(res)
+
+    # handle preflight
+    if getattr(req, 'method', '').upper() == 'OPTIONS':
+        return res.send('', 204)
+
     try:
-        res = add_cors_headers(res)
         body = req.body or {}
         params = req.query or {}
         mode = body.get('mode') or params.get('mode', 'latest')
