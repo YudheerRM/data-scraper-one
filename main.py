@@ -269,16 +269,10 @@ class ImprovedPropertyScraper:
                 price = elem.select_one('.property-price, .listing-price, .price')
                 location = elem.select_one('.property-location, .listing-location, .address')
                 
-                # Get the URL and ensure it's absolute
-                url = elem.get('href', '')
-                if url and not url.startswith('http'):
-                    url = f"https://www.privateproperty.co.za{url if url.startswith('/') else '/' + url}"
-                
                 property_data = {
                     'title': title.text.strip() if title else 'No Title',
                     'price': price.text.strip() if price else 'No Price',
                     'location': location.text.strip() if location else 'No Location',
-                    'url': url
                     # Add more fields as needed
                 }
                 
@@ -325,11 +319,6 @@ class ImprovedPropertyScraper:
                 agent_name = elem.select_one(f'.{prefix}__agent-name')
                 advertiser_info = elem.select_one(f'.{prefix}__advertiser')
                 
-                # Get the URL and ensure it's absolute
-                url = elem.get('href', '')
-                if url and not url.startswith('http'):
-                    url = f"https://www.privateproperty.co.za{url if url.startswith('/') else '/' + url}"
-                
                 # Create comprehensive property data
                 property_data = {
                     'title': title.text.strip() if title else 'No Title',
@@ -341,7 +330,7 @@ class ImprovedPropertyScraper:
                     'listing_type': listing_type,
                     'is_featured': is_featured,
                     'agent': agent_name.text.strip() if agent_name else '',
-                    'url': url
+                    'url': elem.get('href', '')
                 }
                 
                 self.properties.append(property_data)
@@ -414,7 +403,7 @@ class ImprovedPropertyScraper:
                 listing_id = None
                 listing_type = None
                 wishlist_btn = elem.find_elements(By.CSS_SELECTOR, f'.{prefix}__wishlist-btn')
-                if wishlist_btn and len(wishlist_btn) > 0:
+                if wishlist_btn:
                     listing_id = wishlist_btn[0].get_attribute('data-listing-id')
                     listing_type = wishlist_btn[0].get_attribute('data-listing-type')
                 
@@ -428,15 +417,15 @@ class ImprovedPropertyScraper:
                 
                 # Create comprehensive property data
                 property_data = {
-                    'title': title[0].text.strip() if title and len(title) > 0 else 'No Title',
-                    'price': price[0].text.strip() if price and len(price) > 0 else 'No Price',
-                    'location': location[0].text.strip() if location and len(location) > 0 else 'No Location',
-                    'description': description[0].text.strip() if description and len(description) > 0 else '',
+                    'title': title[0].text.strip() if title else 'No Title',
+                    'price': price[0].text.strip() if price else 'No Price',
+                    'location': location[0].text.strip() if location else 'No Location',
+                    'description': description[0].text.strip() if description else '',
                     'features': features,
                     'listing_id': listing_id,
                     'listing_type': listing_type,
                     'is_featured': is_featured,
-                    'agent': agent_name[0].text.strip() if agent_name and len(agent_name) > 0 else '',
+                    'agent': agent_name[0].text.strip() if agent_name else '',
                     'url': url
                 }
                 
@@ -452,7 +441,7 @@ class ImprovedPropertyScraper:
             logger.warning("No properties to save")
             return False
         
-        try:
+        try:    
             with open(self.output_file, 'w', encoding='utf-8') as f:
                 json.dump(self.properties, f, ensure_ascii=False, indent=2)
             logger.info(f"Saved {len(self.properties)} properties to {self.output_file}")
@@ -579,17 +568,17 @@ class ImprovedPropertyScraper:
                         next_url = f"{self.base_url}?page={page + 1}"
                         page += 1
                         retries = 0
-            
+                    
             # Add a random delay between requests
             time.sleep(random.uniform(2, 5))
-            
+                    
             # Save properties periodically (every 3 pages)
             if page % 3 == 0:
                 self.save_properties()
         
         total_properties = len(self.properties)
         logger.info(f"Scraping completed. Total properties found: {total_properties}")
-        
+            
         if total_properties > 0:
             self.save_properties()
         else:
@@ -647,8 +636,8 @@ def extract_agent_contact_info(url, headless=True, timeout=30):
         try:
             # Try different selectors for the contact button
             button_selectors = [
-                "//button[contains(text(), 'Show contact number')]",  # XPath
-                "//button[contains(text(), 'Show number')]",  # XPath
+                "//button[contains(text(), 'Show contact number')]",
+                "//button[contains(text(), 'Show number')]",
                 ".contact-agent-button",
                 ".listing-contact__show-number",
                 "button.btn.outline"
@@ -679,6 +668,7 @@ def extract_agent_contact_info(url, headless=True, timeout=30):
             phone_pattern = re.compile(r'(?:\+\d{1,3}[-\.\s]?)?(?:\(?\d{3}\)?[-\.\s]?){1,2}\d{3,4}[-\.\s]?\d{3,4}')
             page_text = driver.page_source
             phone_matches = phone_pattern.findall(page_text)
+            
             if phone_matches:
                 # Filter to likely phone numbers and limit to first 3
                 contact_info['phone_numbers'] = [p for p in phone_matches if len(re.sub(r'\D', '', p)) >= 9][:3]
@@ -740,6 +730,7 @@ def handle_get_latest_listing_with_contact(url):
         # If the property has a URL, get contact info
         if 'url' in latest_property and latest_property['url']:
             property_url = latest_property['url']
+            
             # Make sure URL is absolute (already handled in extraction but double-check here)
             if not property_url.startswith('http'):
                 parsed_base = urlparse(url)
@@ -755,7 +746,7 @@ def handle_get_latest_listing_with_contact(url):
                     latest_property['contact_info'] = contact_info
                 else:
                     latest_property['contact_info_error'] = contact_info['error']
-        
+                
         return {
             "success": True,
             "property": latest_property
@@ -886,8 +877,7 @@ if __name__ == "__main__":
             
         def header(self, key, value):
             self.headers[key] = value
-            return self
-        
+            
         def json(self, data, status=200):
             print(f"Response Status: {status}")
             print(f"Response Headers: {self.headers}")
@@ -905,8 +895,7 @@ if __name__ == "__main__":
     res = MockResponse()
     main(req, res)
     
-    # Test multiple listings
+    # Test multiple listings now!
     # req = MockRequest(mode='multiple', url='https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55', num_listings=5)
     # res = MockResponse()
     # main(req, res)
-```
