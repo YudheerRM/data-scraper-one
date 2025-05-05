@@ -68,7 +68,7 @@ def handle_scrape_multiple_listings(url, num_listings=10):
         # Read the Excel data as bytes
         excel_data = excel_buffer.getvalue()
         
-        # Return response with Excel data
+        # Return response with Excel data for YRM Labs handling
         return {
             "success": True,
             "message": f"Successfully scraped {len(properties)} listings",
