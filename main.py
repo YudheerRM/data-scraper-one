@@ -803,7 +803,7 @@ def handle_get_latest_listing_with_contact(url):
     try:
         logger.info(f"Getting latest listing from: {url}")
         
-        # Always ensure we're sorting by newest
+        # Always ensure we're sorting by newest for latest listing return
         if '?' in url:
             if 'sorttype=' not in url:
                 url = f"{url}&sorttype=3"  # Add sort by newest
