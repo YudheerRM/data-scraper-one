@@ -19,6 +19,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
+# Helper function to add CORS headers to the response
+def add_cors_headers(res):
+    """Add CORS headers to allow cross-origin requests"""
+    res.header('Access-Control-Allow-Origin', '*')
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    res.header('Access-Control-Allow-Headers', 'Content-Type')
+    return res
+
 def handle_scrape_multiple_listings(url, num_listings=10):
     """
     Scrape multiple listings and return as Excel file
@@ -182,6 +190,9 @@ def main(req, res):
         Response with data or error
     """
     try:
+        # Add CORS headers to all responses
+        res = add_cors_headers(res)
+        
         # Extract parameters
         body = req.body or {}
         params = req.query or {}
@@ -214,6 +225,7 @@ def main(req, res):
             
     except Exception as e:
         logger.error(f"Error in main function: {str(e)}")
+        # Make sure CORS headers are included even in error responses
         return res.json({
             "success": False,
             "message": f"Server error: {str(e)}"
