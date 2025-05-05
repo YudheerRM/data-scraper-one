@@ -905,6 +905,7 @@ def setup_chrome_for_serverless():
     
     return chrome_options
 
+# Main entry point for Appwrite function (expects req, res)
 def main(req, res):
     """
     Main entry point for Appwrite function
@@ -964,9 +965,12 @@ def main(req, res):
 
 # Appwrite expects a single-argument entrypoint: main(context)
 def __appwrite_main(context):
-    req = context.req
-    res = context.res
-    return main(req, res)
+    # Appwrite context provides req and res as attributes
+    return main(context.req, context.res)
+
+# For Appwrite runtime: set the entrypoint to __appwrite_main
+# This ensures Appwrite calls the correct function signature
+main = __appwrite_main
 
 # Local testing
 if __name__ == "__main__":
