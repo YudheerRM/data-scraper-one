@@ -798,7 +798,7 @@ def setup_chrome_for_serverless():
 
 # Replace the original main with a renamed version for user logic
 def user_main(req, res):
-    # ensure CORS headers are always set FIRST
+    # Ensure CORS headers are always set FIRST for OPTIONS and potential errors
     res = add_cors_headers(res)
 
     # handle preflight
@@ -811,38 +811,59 @@ def user_main(req, res):
         params = req.query or {}
         mode = body.get('mode') or params.get('mode', 'latest')
         url = body.get('url') or params.get('url', 'https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55')
+        
         if mode == 'multiple':
             num_listings = int(body.get('num_listings') or params.get('num_listings', 10))
             result = handle_scrape_multiple_listings(url, num_listings)
+            
             if result.get('success', False):
                 if result.get('file_type') == 'excel' and 'file' in result:
                     file_info = result['file']
                     content_type = file_info['type']
                     content_disposition = f"attachment; filename=\"{file_info['name']}\""
-                    
-                    logger.info(f"Setting file download headers: Content-Type={content_type}, Content-Disposition={content_disposition}")
-                    
+                    file_data = file_info['data']
+
+                    # Explicitly set all headers right before sending the file data
                     try:
+                        logger.info("Attempting to set headers for file download...")
+                        res.set_header('Access-Control-Allow-Origin', '*')
+                        res.set_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+                        res.set_header('Access-Control-Allow-Headers', 'Content-Type, *')
+                        res.set_header('Access-Control-Expose-Headers', 'Content-Disposition')
                         res.set_header('Content-Type', content_type)
                         res.set_header('Content-Disposition', content_disposition)
+                        logger.info(f"Headers set: Content-Type={content_type}, Content-Disposition={content_disposition}, CORS headers applied.")
                     except AttributeError:
+                        # Fallback for MockResponse or similar
                         if hasattr(res, 'headers'):
+                            logger.info("Attempting to set headers (fallback) for file download...")
+                            res.headers['Access-Control-Allow-Origin'] = '*'
+                            res.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+                            res.headers['Access-Control-Allow-Headers'] = 'Content-Type, *'
+                            res.headers['Access-Control-Expose-Headers'] = 'Content-Disposition'
                             res.headers['Content-Type'] = content_type
                             res.headers['Content-Disposition'] = content_disposition
+                            logger.info(f"Headers set (fallback): Content-Type={content_type}, Content-Disposition={content_disposition}, CORS headers applied.")
                             
-                    logger.info(f"Sending Excel file, size: {len(file_info['data'])} bytes")
-                    return res.send(file_info['data'], 200)
+                    logger.info(f"Sending Excel file, size: {len(file_data)} bytes")
+                    return res.send(file_data, 200)
                 else:
                     # Handle JSON fallback for multiple listings
                     logger.info("Sending multiple listings result as JSON")
+                    # Ensure CORS headers are set for JSON response too
+                    res = add_cors_headers(res) 
                     return res.json(result)
             else:
                 # Handle failure in scraping multiple listings
                 logger.warning(f"Multiple listings scrape failed: {result.get('message')}")
-                return res.json(result, 400) # Use 400 for client-side errors like bad URL/scrape fail
+                # Ensure CORS headers are set for error response
+                res = add_cors_headers(res) 
+                return res.json(result, 400) 
         else:
             # Handle latest listing mode
             result = handle_get_latest_listing_with_contact(url)
+            # Ensure CORS headers are set
+            res = add_cors_headers(res) 
             if result.get('success', False):
                  logger.info("Sending latest listing result as JSON")
                  return res.json(result)
