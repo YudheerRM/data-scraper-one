@@ -9,8 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-# Fix imports - change from relative to absolute
-# This fixes "Cannot access offset of type string on string" error in Appwrite
+# Fix for module import issue - use absolute imports
 import improved_scraper
 from improved_scraper import ImprovedPropertyScraper
 import extract_agent_info
@@ -34,27 +33,16 @@ def add_cors_headers(res):
 
 def handle_scrape_multiple_listings(url, num_listings=10):
     """
-    Scrape multiple listings and return as Excel file
+    Scrape multiple listings and return as Excel file or JSON
     
     Args:
         url (str): URL to scrape from
         num_listings (int): Number of listings to scrape
     
     Returns:
-        dict: Response with Excel file data
+        dict: Response with data file or JSON
     """
     try:
-        # Only import pandas when needed - helps avoid startup issues
-        try:
-            import pandas as pd
-            from io import BytesIO
-        except ImportError as e:
-            logger.error(f"Failed to import pandas: {str(e)}")
-            return {
-                "success": False,
-                "message": "Server configuration error: Required libraries unavailable"
-            }
-            
         # Determine max pages based on number of listings (assume ~20 per page)
         est_max_pages = (num_listings // 20) + 1
         
@@ -70,28 +58,44 @@ def handle_scrape_multiple_listings(url, num_listings=10):
         # Get the scraped properties
         properties = scraper.properties[:max_to_scrape]
         
-        # Convert to DataFrame for Excel export
-        df = pd.DataFrame(properties)
-        
-        # Create Excel file in memory
-        excel_buffer = BytesIO()
-        df.to_excel(excel_buffer, index=False, engine='openpyxl')
-        excel_buffer.seek(0)
-        
-        # Read the Excel data as bytes
-        excel_data = excel_buffer.getvalue()
-        
-        # Return response with Excel data for YRM Labs handling and downloading
-        return {
-            "success": True,
-            "message": f"Successfully scraped {len(properties)} listings",
-            "file": {
-                "name": "property_listings.xlsx",
-                "data": excel_data,
-                "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        # Try pandas for Excel, fall back to JSON if pandas is not available
+        try:
+            import pandas as pd
+            from io import BytesIO
+            
+            # Convert to DataFrame for Excel export
+            df = pd.DataFrame(properties)
+            
+            # Create Excel file in memory
+            excel_buffer = BytesIO()
+            df.to_excel(excel_buffer, index=False, engine='openpyxl')
+            excel_buffer.seek(0)
+            
+            # Read the Excel data as bytes
+            excel_data = excel_buffer.getvalue()
+            
+            # Return response with Excel data
+            return {
+                "success": True,
+                "message": f"Successfully scraped {len(properties)} listings",
+                "file_type": "excel",
+                "file": {
+                    "name": "property_listings.xlsx",
+                    "data": excel_data,
+                    "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                }
             }
-        }
-        
+        except ImportError as e:
+            logger.warning(f"Pandas not available: {str(e)}. Falling back to JSON output.")
+            
+            # Fall back to JSON response
+            return {
+                "success": True,
+                "message": f"Successfully scraped {len(properties)} listings",
+                "file_type": "json",
+                "data": properties
+            }
+            
     except Exception as e:
         logger.error(f"Error in scrape_multiple_listings: {str(e)}")
         return {
@@ -215,11 +219,15 @@ def main(req, res):
             num_listings = int(body.get('num_listings') or params.get('num_listings', 10))
             result = handle_scrape_multiple_listings(url, num_listings)
             
-            if 'file' in result and result.get('success', False):
-                # Return Excel file
-                res.header('Content-Type', result['file']['type'])
-                res.header('Content-Disposition', f"attachment; filename=\"{result['file']['name']}\"")
-                return res.send(result['file']['data'], 200)
+            if result.get('success', False):
+                if result.get('file_type') == 'excel' and 'file' in result:
+                    # Return Excel file
+                    res.header('Content-Type', result['file']['type'])
+                    res.header('Content-Disposition', f"attachment; filename=\"{result['file']['name']}\"")
+                    return res.send(result['file']['data'], 200)
+                else:
+                    # Return JSON data
+                    return res.json(result)
             else:
                 # Return error response
                 return res.json(result)
