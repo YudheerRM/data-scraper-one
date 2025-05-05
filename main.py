@@ -950,7 +950,7 @@ if __name__ == "__main__":
         def error(self, message):
             print(f"ERROR: {message}")
         
-    # Test get latest with contact
+    # Test get latest with contact info
     print("==== TEST 1: GET LATEST PROPERTY WITH CONTACT INFO ====")
     req = MockRequest(mode='latest', url='https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55')
     res = MockResponse()
