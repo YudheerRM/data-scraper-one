@@ -763,8 +763,19 @@ def handle_get_latest_listing_with_contact(url):
                 "url": url
             }
         
-        # Get the first (latest) property
-        latest_property = scraper.properties[0]
+        # Filter out featured properties
+        non_featured_properties = [p for p in scraper.properties if not p.get('is_featured', False)]
+        
+        # If no non-featured properties found
+        if not non_featured_properties:
+            return {
+                "success": False,
+                "message": "No non-featured properties found",
+                "url": url
+            }
+        
+        # Get the first (latest) non-featured property
+        latest_property = non_featured_properties[0]
         
         # If the property has a URL, get contact info
         if 'url' in latest_property and latest_property['url']:
@@ -834,8 +845,19 @@ def handle_scrape_multiple_listings(url, num_listings=10):
                 "url": url
             }
         
+        # Filter out featured properties
+        non_featured_properties = [p for p in scraper.properties if not p.get('is_featured', False)]
+        
+        # If no non-featured properties found
+        if not non_featured_properties:
+            return {
+                "success": False,
+                "message": "No non-featured properties found",
+                "url": url
+            }
+        
         # Limit to requested number
-        limited_properties = scraper.properties[:num_listings]
+        limited_properties = non_featured_properties[:num_listings]
         
         return {
             "success": True,
