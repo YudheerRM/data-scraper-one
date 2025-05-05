@@ -137,15 +137,15 @@ class ImprovedPropertyScraper:
             # with open(f"page_{page}_source.html", "w", encoding="utf-8") as f:
             #     f.write(response.text)
             
-            # Try different selectors
+            # Try all selectors to get both featured and non-featured properties
             properties_found = 0
             for selector in self.property_selectors:
                 property_elements = soup.select(selector)
                 if property_elements:
                     logger.info(f"Found {len(property_elements)} properties with selector: {selector}")
-                    properties_found = len(property_elements)
+                    properties_found += len(property_elements)
                     self.extract_properties(property_elements)
-                    break
+                    # No break here - try all selectors
             
             if properties_found == 0:
                 logger.warning("No properties found with standard selectors")
@@ -198,18 +198,21 @@ class ImprovedPropertyScraper:
             for selector in self.property_selectors:
                 try:
                     # Wait for elements to be present
-                    WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, selector))
-                    )
-                    property_elements = driver.find_elements(By.CSS_SELECTOR, selector)
-                    
-                    if property_elements:
-                        logger.info(f"Found {len(property_elements)} properties with Selenium using selector: {selector}")
-                        properties_found = len(property_elements)
-                        self.extract_properties_selenium(property_elements)
-                        break
-                except TimeoutException:
-                    continue
+                    try:
+                        WebDriverWait(driver, 10).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                        )
+                        property_elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                        
+                        if property_elements:
+                            logger.info(f"Found {len(property_elements)} properties with Selenium using selector: {selector}")
+                            properties_found += len(property_elements)
+                            self.extract_properties_selenium(property_elements)
+                            # No break here - try all selectors
+                    except TimeoutException:
+                        continue
+                except Exception as e:
+                    logger.debug(f"Error with selector {selector}: {str(e)}")
             
             if properties_found == 0:
                 logger.warning("No properties found with Selenium")
