@@ -965,11 +965,10 @@ def main(req, res):
 
 # Appwrite expects a single-argument entrypoint: main(context)
 def __appwrite_main(context):
-    # Appwrite context provides req and res as attributes
     return main(context.req, context.res)
 
-# For Appwrite runtime: set the entrypoint to __appwrite_main
-# This ensures Appwrite calls the correct function signature
+# Set the module-level main to the correct entrypoint for Appwrite
+# (so Appwrite calls main(context), not main(req, res))
 main = __appwrite_main
 
 # Local testing
