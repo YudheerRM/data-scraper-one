@@ -9,10 +9,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-# Fix for module import issue - import directly from local files
-# Instead of importing from modules, include the code directly
-from .improved_scraper import ImprovedPropertyScraper
-from .extract_agent_info import extract_agent_contact_info
+# Fix imports - change from relative to absolute
+# This fixes "Cannot access offset of type string on string" error in Appwrite
+import improved_scraper
+from improved_scraper import ImprovedPropertyScraper
+import extract_agent_info
+from extract_agent_info import extract_agent_contact_info
 import tempfile
 
 # Configure logging for serverless environment

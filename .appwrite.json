@@ -8,6 +8,9 @@
             "runtime": "python-3.10",
             "execute": ["any"],
             "timeout": 300,
+            "vars": {
+                "PYTHONPATH": "."
+            },
             "entrypoint": "appwrite_function.py",
             "commands": "pip install -r requirements.txt"
         }

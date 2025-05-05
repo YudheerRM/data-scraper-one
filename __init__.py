@@ -1,2 +1,1 @@
-# This empty file makes the directory a Python package
-# Helps with relative imports in Appwrite Functions
+# Empty init file to make the directory a Python package
