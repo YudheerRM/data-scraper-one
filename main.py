@@ -671,6 +671,7 @@ def handle_scrape_multiple_listings(url, num_listings=10):
         # Try pandas for Excel, fall back to JSON if pandas is not available
         try:
             import pandas as pd
+            import base64
             from io import BytesIO
             
             # Convert to DataFrame for Excel export
@@ -681,17 +682,18 @@ def handle_scrape_multiple_listings(url, num_listings=10):
             df.to_excel(excel_buffer, index=False, engine='openpyxl')
             excel_buffer.seek(0)
             
-            # Read the Excel data as bytes
+            # Read the Excel data as bytes and encode as base64
             excel_data = excel_buffer.getvalue()
+            base64_excel = base64.b64encode(excel_data).decode('utf-8')
             
-            # Return response with Excel data
+            # Return response with Excel data encoded in base64
             return {
                 "success": True,
                 "message": f"Successfully scraped {len(properties)} listings",
                 "file_type": "excel",
                 "file": {
                     "name": "property_listings.xlsx",
-                    "data": excel_data,
+                    "data_base64": base64_excel,
                     "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 }
             }
@@ -795,7 +797,7 @@ def setup_chrome_for_serverless():
         chrome_options.binary_location = chrome_binary_location
     
     return chrome_options
-
+    
 # Replace the original main with a renamed version for user logic
 def user_main(req, res):
     # Ensure CORS headers are always set FIRST for OPTIONS and potential errors
@@ -816,65 +818,17 @@ def user_main(req, res):
             num_listings = int(body.get('num_listings') or params.get('num_listings', 10))
             result = handle_scrape_multiple_listings(url, num_listings)
             
-            if result.get('success', False):
-                if result.get('file_type') == 'excel' and 'file' in result:
-                    file_info = result['file']
-                    content_type = file_info['type']
-                    content_disposition = f"attachment; filename=\"{file_info['name']}\""
-                    file_data = file_info['data']
-
-                    # Explicitly set all headers right before sending the file data
-                    try:
-                        logger.info("Attempting to set headers for file download...")
-                        res.set_header('Access-Control-Allow-Origin', '*')
-                        res.set_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-                        res.set_header('Access-Control-Allow-Headers', 'Content-Type, *')
-                        res.set_header('Access-Control-Expose-Headers', 'Content-Disposition')
-                        res.set_header('Content-Type', content_type)
-                        res.set_header('Content-Disposition', content_disposition)
-                        logger.info(f"Headers set: Content-Type={content_type}, Content-Disposition={content_disposition}, CORS headers applied.")
-                    except AttributeError:
-                        # Fallback for MockResponse or similar
-                        if hasattr(res, 'headers'):
-                            logger.info("Attempting to set headers (fallback) for file download...")
-                            res.headers['Access-Control-Allow-Origin'] = '*'
-                            res.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-                            res.headers['Access-Control-Allow-Headers'] = 'Content-Type, *'
-                            res.headers['Access-Control-Expose-Headers'] = 'Content-Disposition'
-                            res.headers['Content-Type'] = content_type
-                            res.headers['Content-Disposition'] = content_disposition
-                            logger.info(f"Headers set (fallback): Content-Type={content_type}, Content-Disposition={content_disposition}, CORS headers applied.")
-                            
-                    logger.info(f"Sending Excel file, size: {len(file_data)} bytes")
-                    return res.send(file_data, 200)
-                else:
-                    # Handle JSON fallback for multiple listings
-                    logger.info("Sending multiple listings result as JSON")
-                    # Ensure CORS headers are set for JSON response too
-                    res = add_cors_headers(res) 
-                    return res.json(result)
-            else:
-                # Handle failure in scraping multiple listings
-                logger.warning(f"Multiple listings scrape failed: {result.get('message')}")
-                # Ensure CORS headers are set for error response
-                res = add_cors_headers(res) 
-                return res.json(result, 400) 
+            # Always return JSON for multiple listings (includes base64 data if Excel)
+            logger.info("Sending multiple listings result as JSON")
+            return res.json(result)
         else:
             # Handle latest listing mode
             result = handle_get_latest_listing_with_contact(url)
-            # Ensure CORS headers are set
-            res = add_cors_headers(res) 
-            if result.get('success', False):
-                 logger.info("Sending latest listing result as JSON")
-                 return res.json(result)
-            else:
-                 logger.warning(f"Latest listing scrape failed: {result.get('message')}")
-                 return res.json(result, 400)
+            logger.info("Sending latest listing result as JSON")
+            return res.json(result)
 
     except Exception as e:
-        logger.error(f"Error in main function: {str(e)}", exc_info=True) # Log traceback
-        # Ensure CORS headers are set even on server error
-        res = add_cors_headers(res)
+        logger.error(f"Error in main function: {str(e)}", exc_info=True) 
         return res.json({
             "success": False,
             "message": f"Server error: {str(e)}"
