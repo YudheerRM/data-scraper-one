@@ -269,10 +269,14 @@ class ImprovedPropertyScraper:
                 price = elem.select_one('.property-price, .listing-price, .price')
                 location = elem.select_one('.property-location, .listing-location, .address')
                 
+                # Extract image url
+                image = elem.select_one('img.property-image, img.listing-image, img.listing-result__image')
+                
                 property_data = {
                     'title': title.text.strip() if title else 'No Title',
                     'price': price.text.strip() if price else 'No Price',
                     'location': location.text.strip() if location else 'No Location',
+                    'image_url': image.get('src') if image else None,
                     # Add more fields as needed
                 }
                 
@@ -298,6 +302,9 @@ class ImprovedPropertyScraper:
                 location = elem.select_one(f'.{prefix}__address')
                 description = elem.select_one(f'.{prefix}__description')
                 
+                # Extract image URL - look for img tag with specific class or any img inside the element
+                image = elem.select_one(f'img.{prefix}__image') or elem.select_one('img')
+                
                 # Extract features (bedrooms, bathrooms, etc.)
                 features = {}
                 feature_elements = elem.select(f'.{prefix}__feature')
@@ -319,6 +326,17 @@ class ImprovedPropertyScraper:
                 agent_name = elem.select_one(f'.{prefix}__agent-name')
                 advertiser_info = elem.select_one(f'.{prefix}__advertiser')
                 
+                # Get property URL and make sure it's absolute
+                property_url = elem.get('href', '')
+                if property_url and not property_url.startswith('http'):
+                    # Extract domain from the base URL
+                    domain = self.base_url.split('/')[2] if '//' in self.base_url else self.base_url.split('/')[0]
+                    if '//' in self.base_url:
+                        scheme = self.base_url.split('/')[0] + '//'
+                    else:
+                        scheme = 'https://'
+                    property_url = f"{scheme}{domain}{property_url}"
+                
                 # Create comprehensive property data
                 property_data = {
                     'title': title.text.strip() if title else 'No Title',
@@ -330,11 +348,13 @@ class ImprovedPropertyScraper:
                     'listing_type': listing_type,
                     'is_featured': is_featured,
                     'agent': agent_name.text.strip() if agent_name else '',
-                    'url': elem.get('href', '')
+                    'url': property_url,
+                    'image_url': image.get('src') if image else None
                 }
                 
-                self.properties.append(property_data)
                 logger.debug(f"Extracted property from Private Property: {property_data['title']}")
+                logger.debug(f"Image URL: {property_data['image_url']}")
+                self.properties.append(property_data)
                 
             except Exception as e:
                 logger.error(f"Error extracting Private Property data: {str(e)}")
@@ -359,10 +379,14 @@ class ImprovedPropertyScraper:
                 price = elem.find_elements(By.CSS_SELECTOR, '.property-price, .listing-price, .price')
                 location = elem.find_elements(By.CSS_SELECTOR, '.property-location, .listing-location, .address')
                 
+                # Extract image url
+                image = elem.find_elements(By.CSS_SELECTOR, 'img.property-image, img.listing-image, img.listing-result__image')
+                
                 property_data = {
                     'title': title[0].text.strip() if title else 'No Title',
                     'price': price[0].text.strip() if price else 'No Price',
                     'location': location[0].text.strip() if location else 'No Location',
+                    'image_url': image[0].get_attribute('src') if image else None,
                     # Add more fields as needed
                 }
                 
@@ -389,6 +413,11 @@ class ImprovedPropertyScraper:
                 location = elem.find_elements(By.CSS_SELECTOR, f'.{prefix}__address')
                 description = elem.find_elements(By.CSS_SELECTOR, f'.{prefix}__description')
                 
+                # Extract image URL - look for specific class or any img inside the element
+                image = elem.find_elements(By.CSS_SELECTOR, f'img.{prefix}__image')
+                if not image:
+                    image = elem.find_elements(By.CSS_SELECTOR, 'img')
+                
                 # Extract features (bedrooms, bathrooms, etc.)
                 features = {}
                 feature_elements = elem.find_elements(By.CSS_SELECTOR, f'.{prefix}__feature')
@@ -410,6 +439,17 @@ class ImprovedPropertyScraper:
                 # Extract agent or agency info
                 agent_name = elem.find_elements(By.CSS_SELECTOR, f'.{prefix}__agent-name')
                 
+                # Get property URL and make sure it's absolute
+                property_url = elem.get_attribute('href') or ''
+                if property_url and not property_url.startswith('http'):
+                    # Extract domain from the base URL
+                    domain = self.base_url.split('/')[2] if '//' in self.base_url else self.base_url.split('/')[0]
+                    if '//' in self.base_url:
+                        scheme = self.base_url.split('/')[0] + '//'
+                    else:
+                        scheme = 'https://'
+                    property_url = f"{scheme}{domain}{property_url}"
+                
                 # Create comprehensive property data
                 property_data = {
                     'title': title[0].text.strip() if title else 'No Title',
@@ -421,11 +461,13 @@ class ImprovedPropertyScraper:
                     'listing_type': listing_type,
                     'is_featured': is_featured,
                     'agent': agent_name[0].text.strip() if agent_name else '',
-                    'url': elem.get_attribute('href') or ''
+                    'url': property_url,
+                    'image_url': image[0].get_attribute('src') if image else None
                 }
                 
-                self.properties.append(property_data)
                 logger.debug(f"Extracted property from Private Property with Selenium: {property_data['title']}")
+                logger.debug(f"Image URL: {property_data['image_url']}")
+                self.properties.append(property_data)
                 
             except Exception as e:
                 logger.error(f"Error extracting Private Property data with Selenium: {str(e)}")
@@ -859,39 +901,71 @@ def main(context):
 # Local testing
 if __name__ == "__main__":
     class MockRequest:
-        def __init__(self, mode='latest', url=None, num_listings=None):
+        def __init__(self, mode='latest', url=None, num_listings=None, method='GET'):
             self.body = {
                 'mode': mode,
                 'url': url,
                 'num_listings': num_listings
             }
             self.query = {}
+            self.method = method
     
     class MockResponse:
         def __init__(self):
             self.headers = {}
-            
+                    
         def header(self, key, value):
             self.headers[key] = value
-            
-        def json(self, data, status=200):
+                    
+        def json(self, data, status=200, headers=None):
             print(f"Response Status: {status}")
+            
+            # Update headers if provided
+            if headers:
+                self.headers.update(headers)
+                
             print(f"Response Headers: {self.headers}")
             print(f"Response Data: {json.dumps(data, indent=2)}")
             return data
-            
-        def send(self, data, status=200):
+                    
+        def send(self, data, status=200, headers=None):
             print(f"Sending file, Status: {status}")
+            
+            # Update headers if provided
+            if headers:
+                self.headers.update(headers)
+                
             print(f"Response Headers: {self.headers}")
             print(f"File size: {len(data)} bytes")
             return data
-    
+
+    class MockContext:
+        def __init__(self, req, res):
+            self.req = req
+            self.res = res
+        
+        def log(self, message):
+            print(f"LOG: {message}")
+            
+        def error(self, message):
+            print(f"ERROR: {message}")
+        
     # Test get latest with contact
+    print("==== TEST 1: GET LATEST PROPERTY WITH CONTACT INFO ====")
     req = MockRequest(mode='latest', url='https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55')
     res = MockResponse()
-    main(req, res)
+    context = MockContext(req, res)
+    main(context)
     
-    # Test multiple listings now!
-    # req = MockRequest(mode='multiple', url='https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55', num_listings=5)
-    # res = MockResponse()
-    # main(req, res)
+    # Test multiple listings (with pagination through sorttype parameter)
+    print("\n==== TEST 2: GET MULTIPLE LISTINGS (30) WITH PAGINATION ====")
+    req = MockRequest(
+        mode='multiple', 
+        url='https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55?sorttype=3', 
+        num_listings=30
+    )
+    res = MockResponse()
+    context = MockContext(req, res)
+    main(context)
+    
+    print("\nLocal testing completed!")
