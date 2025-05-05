@@ -905,70 +905,43 @@ def setup_chrome_for_serverless():
     
     return chrome_options
 
-# Main entry point for Appwrite function (expects req, res)
-def main(req, res):
-    """
-    Main entry point for Appwrite function
-    
-    Args:
-        req: Request object from Appwrite
-        res: Response object from Appwrite
-    
-    Returns:
-        Response with data or error
-    """
+# Replace the original main with a renamed version for user logic
+def user_main(req, res):
+    # ...existing code from original main(req, res)...
     try:
-        # Add CORS headers to all responses
         res = add_cors_headers(res)
-        
-        # Extract parameters
         body = req.body or {}
         params = req.query or {}
-        
-        # Get operation mode and url
         mode = body.get('mode') or params.get('mode', 'latest')
         url = body.get('url') or params.get('url', 'https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55')
-        
-        # Set up Chrome for serverless if needed
-        # Uncomment if you need to modify the global Chrome options
-        # setup_chrome_for_serverless()
-        
+        # ...existing code for mode handling...
         if mode == 'multiple':
-            # Get number of listings
             num_listings = int(body.get('num_listings') or params.get('num_listings', 10))
             result = handle_scrape_multiple_listings(url, num_listings)
-            
             if result.get('success', False):
                 if result.get('file_type') == 'excel' and 'file' in result:
-                    # Return Excel file
                     res.header('Content-Type', result['file']['type'])
                     res.header('Content-Disposition', f"attachment; filename=\"{result['file']['name']}\"")
                     return res.send(result['file']['data'], 200)
                 else:
-                    # Return JSON data
                     return res.json(result)
             else:
-                # Return error response
                 return res.json(result)
         else:
-            # Get latest listing with contact info
             result = handle_get_latest_listing_with_contact(url)
             return res.json(result)
-            
     except Exception as e:
         logger.error(f"Error in main function: {str(e)}")
-        # Make sure CORS headers are included even in error responses
         return res.json({
             "success": False,
             "message": f"Server error: {str(e)}"
         }, 500)
 
-# Appwrite expects a single-argument entrypoint: main(context)
+# Appwrite expects a single-argument entrypoint: __appwrite_main(context)
 def __appwrite_main(context):
-    return main(context.req, context.res)
+    return user_main(context.req, context.res)
 
-# Set the module-level main to the correct entrypoint for Appwrite
-# (so Appwrite calls main(context), not main(req, res))
+# Set the module-level entrypoint to __appwrite_main
 main = __appwrite_main
 
 # Local testing
