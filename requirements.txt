@@ -1,7 +1,8 @@
 selenium==4.10.0
 beautifulsoup4==4.12.2
-pandas==2.0.3
-openpyxl==3.1.2
 requests==2.31.0
 fake-useragent==1.1.3
-webdriver-manager==4.0.0
+# Use --only-binary option to avoid building from source
+openpyxl==3.1.2 --only-binary=:all:
+# For JSON output instead of Excel when pandas fails
+simplejson==3.19.2

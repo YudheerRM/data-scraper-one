@@ -9,10 +9,11 @@
             "execute": ["any"],
             "timeout": 300,
             "vars": {
-                "PYTHONPATH": "."
+                "PYTHONPATH": ".",
+                "PIP_ONLY_BINARY": ":all:"
             },
             "entrypoint": "appwrite_function.py",
-            "commands": "pip install -r requirements.txt"
+            "commands": "pip install --no-cache-dir -r requirements.txt"
         }
     ]
 }
