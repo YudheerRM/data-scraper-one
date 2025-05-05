@@ -371,7 +371,7 @@ class ImprovedPropertyScraper:
                 
             except Exception as e:
                 logger.error(f"Error extracting property data with Selenium: {str(e)}")
-
+                
     def extract_privateproperty_data_selenium(self, property_elements):
         """Extract property data from Selenium elements specific to privateproperty.co.za"""
         for elem in property_elements:
@@ -410,11 +410,6 @@ class ImprovedPropertyScraper:
                 # Extract agent or agency info
                 agent_name = elem.find_elements(By.CSS_SELECTOR, f'.{prefix}__agent-name')
                 
-                # Get URL and ensure it's absolute
-                url = elem.get_attribute('href') or ''
-                if url and not url.startswith('http'):
-                    url = f"https://www.privateproperty.co.za{url if url.startswith('/') else '/' + url}"
-                
                 # Create comprehensive property data
                 property_data = {
                     'title': title[0].text.strip() if title else 'No Title',
@@ -426,7 +421,7 @@ class ImprovedPropertyScraper:
                     'listing_type': listing_type,
                     'is_featured': is_featured,
                     'agent': agent_name[0].text.strip() if agent_name else '',
-                    'url': url
+                    'url': elem.get_attribute('href') or ''
                 }
                 
                 self.properties.append(property_data)
@@ -434,14 +429,14 @@ class ImprovedPropertyScraper:
                 
             except Exception as e:
                 logger.error(f"Error extracting Private Property data with Selenium: {str(e)}")
-
+    
     def save_properties(self):
         """Save the scraped properties to JSON file"""
         if not self.properties:
             logger.warning("No properties to save")
             return False
         
-        try:    
+        try:
             with open(self.output_file, 'w', encoding='utf-8') as f:
                 json.dump(self.properties, f, ensure_ascii=False, indent=2)
             logger.info(f"Saved {len(self.properties)} properties to {self.output_file}")
@@ -503,7 +498,7 @@ class ImprovedPropertyScraper:
                 return f"{current_url}&page={current_page + 1}"
         else:
             return f"{current_url}?page={current_page + 1}"
-        
+    
     def click_next_page_selenium(self, driver):
         """Click on the next page button using Selenium"""
         for selector in self.pagination_selectors:
@@ -516,7 +511,7 @@ class ImprovedPropertyScraper:
                         logger.info("Clicking on next page button")
                         next_buttons[0].click()
                         # Wait for page to load
-                        time.sleep(3)
+                        time.sleep(3)  
                         return True
             except Exception as e:
                 logger.debug(f"Error clicking next page with selector {selector}: {str(e)}")
@@ -562,23 +557,24 @@ class ImprovedPropertyScraper:
                     # Both scraping methods failed
                     retries += 1
                     logger.warning(f"Both scraping methods failed on page {page}, retry {retries}/{self.max_retries}")
+                    
                     if retries >= self.max_retries:
                         logger.error(f"Maximum retries reached for page {page}, moving to next page")
                         # Attempt to construct next page URL
                         next_url = f"{self.base_url}?page={page + 1}"
                         page += 1
                         retries = 0
-                    
+            
             # Add a random delay between requests
             time.sleep(random.uniform(2, 5))
-                    
+            
             # Save properties periodically (every 3 pages)
             if page % 3 == 0:
                 self.save_properties()
         
         total_properties = len(self.properties)
         logger.info(f"Scraping completed. Total properties found: {total_properties}")
-            
+        
         if total_properties > 0:
             self.save_properties()
         else:
@@ -616,7 +612,7 @@ def extract_agent_contact_info(url, headless=True, timeout=30):
                 "url": url,
                 "error": "Chromedriver not found or not executable",
             }
-        
+
         # Navigate to the page
         logger.info(f"Navigating to: {url}")
         driver.get(url)
@@ -662,7 +658,7 @@ def extract_agent_contact_info(url, headless=True, timeout=30):
                         break
                 except Exception as btn_err:
                     logger.debug(f"Could not click button with selector {selector}: {btn_err}")
-            
+        
             # Now try to extract contact information
             # Look for phone numbers
             phone_pattern = re.compile(r'(?:\+\d{1,3}[-\.\s]?)?(?:\(?\d{3}\)?[-\.\s]?){1,2}\d{3,4}[-\.\s]?\d{3,4}')
@@ -686,13 +682,12 @@ def extract_agent_contact_info(url, headless=True, timeout=30):
                 
         except Exception as e:
             logger.error(f"Error extracting contact info: {str(e)}")
-        
+            
         return contact_info
-    
+            
     except Exception as e:
         logger.error(f"Error during extraction: {str(e)}")
         return {"error": str(e), "url": url}
-    
     finally:
         if driver:
             driver.quit()
@@ -700,8 +695,10 @@ def extract_agent_contact_info(url, headless=True, timeout=30):
 def handle_get_latest_listing_with_contact(url):
     """
     Get the latest property listing with contact info
+    
     Args:
         url (str): URL of the property listings page
+        
     Returns:
         dict: Latest property listing with contact info
     """
@@ -731,7 +728,7 @@ def handle_get_latest_listing_with_contact(url):
         if 'url' in latest_property and latest_property['url']:
             property_url = latest_property['url']
             
-            # Make sure URL is absolute (already handled in extraction but double-check here)
+            # Make sure URL is absolute
             if not property_url.startswith('http'):
                 parsed_base = urlparse(url)
                 base_url = f"{parsed_base.scheme}://{parsed_base.netloc}"
@@ -746,7 +743,7 @@ def handle_get_latest_listing_with_contact(url):
                     latest_property['contact_info'] = contact_info
                 else:
                     latest_property['contact_info_error'] = contact_info['error']
-                
+        
         return {
             "success": True,
             "property": latest_property
@@ -761,11 +758,13 @@ def handle_get_latest_listing_with_contact(url):
         }
 
 def handle_scrape_multiple_listings(url, num_listings=10):
-    """ 
+    """
     Scrape multiple property listings
+    
     Args:
         url (str): URL of the property listings page
         num_listings (int): Number of listings to scrape
+        
     Returns:
         dict: Scraped property listings
     """
@@ -793,11 +792,8 @@ def handle_scrape_multiple_listings(url, num_listings=10):
                 "url": url
             }
         
-        # Limit to requested number and ensure all URLs are absolute
+        # Limit to requested number
         limited_properties = scraper.properties[:num_listings]
-        for prop in limited_properties:
-            if 'url' in prop and prop['url'] and not prop['url'].startswith('http'):
-                prop['url'] = f"https://www.privateproperty.co.za{prop['url'] if prop['url'].startswith('/') else '/' + prop['url']}"
         
         return {
             "success": True,
@@ -833,7 +829,7 @@ def main(context):
     if context.req.method.upper() == 'OPTIONS':
         context.log("Handling OPTIONS preflight request")
         return context.res.send('', 204, headers=cors_headers)
-    
+
     try:
         # Get parameters from query or body
         body = context.req.body or {}
@@ -849,10 +845,10 @@ def main(context):
             result = handle_scrape_multiple_listings(url, num_listings)
             return context.res.json(result, headers=cors_headers)
         else:
-            # Handle latest listing mode        
+            # Handle latest listing mode
             result = handle_get_latest_listing_with_contact(url)
             return context.res.json(result, headers=cors_headers)
-            
+
     except Exception as e:
         context.error(f"Error in main function: {str(e)}")
         return context.res.json({
@@ -885,7 +881,7 @@ if __name__ == "__main__":
             return data
             
         def send(self, data, status=200):
-            print(f"Response Status: {status}")
+            print(f"Sending file, Status: {status}")
             print(f"Response Headers: {self.headers}")
             print(f"File size: {len(data)} bytes")
             return data
