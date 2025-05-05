@@ -623,190 +623,47 @@ def extract_agent_contact_info(url, headless=False, timeout=30):
 # (Main function handling)
 #############################################################################
 
-# Helper function to add CORS headers to the response
-def add_cors_headers(res):
-    """Add CORS headers to allow cross-origin requests"""
-    # Simplify the header application logic
-    headers = {
+# Completely rewrite the main function to handle CORS properly
+def main(context):
+    """Main entrypoint for the Appwrite function"""
+    # Set CORS headers for all responses 
+    cors_headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, *',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Access-Control-Expose-Headers': 'Content-Disposition'
     }
     
-    # Try all possible methods to set headers
-    for key, value in headers.items():
-        # Method 1: set_header
-        if hasattr(res, 'set_header'):
-            try:
-                res.set_header(key, value)
-            except Exception:
-                pass
-                
-        # Method 2: headers dictionary
-        if hasattr(res, 'headers'):
-            try:
-                res.headers[key] = value
-            except Exception:
-                pass
-                
-        # Method 3: header method
-        if hasattr(res, 'header'):
-            try:
-                res.header(key, value)
-            except Exception:
-                pass
-                
-    return res
-
-def handle_scrape_multiple_listings(url, num_listings=10):
-    """
-    Scrape multiple listings and return as JSON
-    """
-    try:
-        # Determine max pages based on number of listings (assume ~20 per page)
-        est_max_pages = (num_listings // 20) + 1
-        max_to_scrape = min(num_listings, 100)
-
-        scraper = ImprovedPropertyScraper(url, output_file="temp_properties.json")
-        scraper.scrape(max_pages=est_max_pages)
-        properties = scraper.properties[:max_to_scrape]
-
-        return {
-            "success": True,
-            "message": f"Successfully scraped {len(properties)} listings",
-            "data": properties
-        }
-    except Exception as e:
-        logger.error(f"Error in scrape_multiple_listings: {str(e)}")
-        return {
-            "success": False,
-            "message": f"Error: {str(e)}"
-        }
-
-def handle_get_latest_listing_with_contact(url):
-    """
-    Get the latest listing with contact info
-    
-    Args:
-        url (str): URL to scrape from
-    
-    Returns:
-        dict: Latest listing with contact info
-    """
-    try:
-        # Create scraper to get just the first page
-        scraper = ImprovedPropertyScraper(url, output_file="temp_latest.json")
-        
-        # Scrape just one page
-        scraper.scrape(max_pages=1)
-        
-        # Check if we got any properties
-        if not scraper.properties or len(scraper.properties) == 0:
-            return {
-                "success": False,
-                "message": "No listings found"
-            }
-        
-        # Get the first (latest) listing
-        latest_listing = scraper.properties[0]
-        
-        # Check if the listing has a URL
-        if 'url' not in latest_listing or not latest_listing['url']:
-            return {
-                "success": False,
-                "message": "Listing URL not found"
-            }
-        
-        # Get the full URL if it's relative
-        listing_url = latest_listing['url']
-        if listing_url.startswith('/'):
-            # Parse from the base url
-            base_parts = url.split('/')
-            if len(base_parts) > 3:
-                listing_url = f"{base_parts[0]}//{base_parts[2]}{listing_url}"
-        
-        logger.info(f"Extracting contact info from: {listing_url}")
-        
-        # Extract contact info using the agent contact extractor
-        # Run in non-headless mode for better interaction with dynamic elements
-        contact_info = extract_agent_contact_info(listing_url, headless=False)
-        
-        # Combine listing info with contact info
-        combined_info = {
-            **latest_listing,
-            "contact_details": contact_info
-        }
-        
-        return {
-            "success": True,
-            "data": combined_info
-        }
-        
-    except Exception as e:
-        logger.error(f"Error in get_latest_listing_with_contact: {str(e)}")
-        return {
-            "success": False,
-            "message": f"Error: {str(e)}"
-        }
-
-def setup_chrome_for_serverless():
-    """Set up Chrome for a serverless environment"""
-    chrome_options = Options()
-    
-    # Required for serverless environment functioning
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    
-    # Set up path for Chrome binary in serverless
-    chrome_binary_location = os.environ.get("CHROME_BINARY_PATH", "/usr/bin/google-chrome")
-    if os.path.exists(chrome_binary_location):
-        chrome_options.binary_location = chrome_binary_location
-    
-    return chrome_options
-    
-# Replace the original main with a renamed version for user logic
-def user_main(req, res):
-    add_cors_headers(res)
-
-    # handle preflight
-    if getattr(req, 'method', '').upper() == 'OPTIONS':
-        logger.info("Handling OPTIONS preflight request")
-        add_cors_headers(res)
-        return res.send('', 204)
+    # Handle OPTIONS preflight requests
+    if context.req.method.upper() == 'OPTIONS':
+        context.log("Handling OPTIONS preflight request")
+        return context.res.send('', 204, headers=cors_headers)
 
     try:
-        body = req.body or {}
-        params = req.query or {}
+        # Get parameters from query or body
+        body = context.req.body or {}
+        params = context.req.query or {}
         mode = body.get('mode') or params.get('mode', 'latest')
         url = body.get('url') or params.get('url', 'https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55')
-
+        
+        context.log(f"Processing request with mode: {mode}, url: {url}")
+        
         if mode == 'multiple':
+            # Handle multiple listings mode
             num_listings = int(body.get('num_listings') or params.get('num_listings', 10))
             result = handle_scrape_multiple_listings(url, num_listings)
-            add_cors_headers(res)
-            return res.json(result)
+            return context.res.json(result, headers=cors_headers)
         else:
+            # Handle latest listing mode
             result = handle_get_latest_listing_with_contact(url)
-            add_cors_headers(res)
-            return res.json(result)
+            return context.res.json(result, headers=cors_headers)
 
     except Exception as e:
-        logger.error(f"Error in main function: {str(e)}", exc_info=True)
-        add_cors_headers(res)
-        return res.json({
+        context.error(f"Error in main function: {str(e)}")
+        return context.res.json({
             "success": False,
             "message": f"Server error: {str(e)}"
-        }, 500)
-
-# Appwrite expects a single-argument entrypoint: __appwrite_main(context)
-def __appwrite_main(context):
-    return user_main(context.req, context.res)
-
-# Set the module-level entrypoint to __appwrite_main
-main = __appwrite_main
+        }, 500, headers=cors_headers)
 
 # Local testing
 if __name__ == "__main__":
