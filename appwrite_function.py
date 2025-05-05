@@ -892,7 +892,7 @@ def setup_chrome_for_serverless():
     """Set up Chrome for a serverless environment"""
     chrome_options = Options()
     
-    # Required for serverless environment
+    # Required for serverless environment functioning
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
