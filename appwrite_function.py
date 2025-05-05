@@ -2,8 +2,6 @@ import os
 import json
 import time
 import logging
-import pandas as pd
-from io import BytesIO
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -33,6 +31,17 @@ def handle_scrape_multiple_listings(url, num_listings=10):
         dict: Response with Excel file data
     """
     try:
+        # Only import pandas when needed - helps avoid startup issues
+        try:
+            import pandas as pd
+            from io import BytesIO
+        except ImportError as e:
+            logger.error(f"Failed to import pandas: {str(e)}")
+            return {
+                "success": False,
+                "message": "Server configuration error: Required libraries unavailable"
+            }
+            
         # Determine max pages based on number of listings (assume ~20 per page)
         est_max_pages = (num_listings // 20) + 1
         
