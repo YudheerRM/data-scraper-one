@@ -962,6 +962,12 @@ def main(req, res):
             "message": f"Server error: {str(e)}"
         }, 500)
 
+# Appwrite expects a single-argument entrypoint: main(context)
+def __appwrite_main(context):
+    req = context.req
+    res = context.res
+    return main(req, res)
+
 # Local testing
 if __name__ == "__main__":
     class MockRequest:
