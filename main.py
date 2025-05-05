@@ -639,75 +639,32 @@ def add_cors_headers(res):
             res.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
             res.headers['Access-Control-Allow-Headers'] = 'Content-Type, *'
             res.headers['Access-Control-Expose-Headers'] = 'Content-Disposition'
+    # also support .header() on some response objects
+    if hasattr(res, 'header'):
+        res.header('Access-Control-Allow-Origin', '*')
+        res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        res.header('Access-Control-Allow-Headers', 'Content-Type, *')
+        res.header('Access-Control-Expose-Headers', 'Content-Disposition')
     return res
 
 def handle_scrape_multiple_listings(url, num_listings=10):
     """
-    Scrape multiple listings and return as Excel file or JSON
-    
-    Args:
-        url (str): URL to scrape from
-        num_listings (int): Number of listings to scrape
-    
-    Returns:
-        dict: Response with data file or JSON
+    Scrape multiple listings and return as JSON
     """
     try:
         # Determine max pages based on number of listings (assume ~20 per page)
         est_max_pages = (num_listings // 20) + 1
-        
-        # Create a scraper instance with limited pages
-        scraper = ImprovedPropertyScraper(url, output_file="temp_properties.json")
-        
-        # Set a limit to avoid too many requests
         max_to_scrape = min(num_listings, 100)
-        
-        # Perform scraping
+
+        scraper = ImprovedPropertyScraper(url, output_file="temp_properties.json")
         scraper.scrape(max_pages=est_max_pages)
-        
-        # Get the scraped properties
         properties = scraper.properties[:max_to_scrape]
-        
-        # Try pandas for Excel, fall back to JSON if pandas is not available
-        try:
-            import pandas as pd
-            import base64
-            from io import BytesIO
-            
-            # Convert to DataFrame for Excel export
-            df = pd.DataFrame(properties)
-            
-            # Create Excel file in memory
-            excel_buffer = BytesIO()
-            df.to_excel(excel_buffer, index=False, engine='openpyxl')
-            excel_buffer.seek(0)
-            
-            # Read the Excel data as bytes and encode as base64
-            excel_data = excel_buffer.getvalue()
-            base64_excel = base64.b64encode(excel_data).decode('utf-8')
-            
-            # Return response with Excel data encoded in base64
-            return {
-                "success": True,
-                "message": f"Successfully scraped {len(properties)} listings",
-                "file_type": "excel",
-                "file": {
-                    "name": "property_listings.xlsx",
-                    "data_base64": base64_excel,
-                    "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                }
-            }
-        except ImportError as e:
-            logger.warning(f"Pandas not available: {str(e)}. Falling back to JSON output.")
-            
-            # Fall back to JSON response
-            return {
-                "success": True,
-                "message": f"Successfully scraped {len(properties)} listings",
-                "file_type": "json",
-                "data": properties
-            }
-            
+
+        return {
+            "success": True,
+            "message": f"Successfully scraped {len(properties)} listings",
+            "data": properties
+        }
     except Exception as e:
         logger.error(f"Error in scrape_multiple_listings: {str(e)}")
         return {
