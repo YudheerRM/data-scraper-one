@@ -997,7 +997,7 @@ if __name__ == "__main__":
     res = MockResponse()
     main(req, res)
     
-    # Test multiple listings
+    # Test multiple listings now!
     # req = MockRequest(mode='multiple', url='https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55', num_listings=5)
     # res = MockResponse()
     # main(req, res)
