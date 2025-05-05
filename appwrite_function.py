@@ -8,8 +8,11 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from improved_scraper import ImprovedPropertyScraper
-from extract_agent_info import extract_agent_contact_info
+
+# Fix for module import issue - import directly from local files
+# Instead of importing from modules, include the code directly
+from .improved_scraper import ImprovedPropertyScraper
+from .extract_agent_info import extract_agent_contact_info
 import tempfile
 
 # Configure logging for serverless environment

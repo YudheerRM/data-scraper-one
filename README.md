@@ -1,35 +1,55 @@
-# Property Listing Scraper
+# Property Scraper Appwrite Function
 
-A Python scraper to extract property listings from PrivateProperty.co.za.
+This function scrapes property listings from websites and returns either:
+1. The latest listing with contact info
+2. Multiple listings in an Excel file
 
-## Setup
+## Deployment Instructions
 
-1. Install the required packages:
-   ```
-   pip install -r requirements.txt
-   ```
+### 1. Install the Appwrite CLI
+```bash
+npm install -g appwrite-cli
+```
 
-2. Run the scraper:
-   ```
-   python property_scraper.py
-   ```
+### 2. Login to Appwrite
+```bash
+appwrite login
+```
 
-## Configuration
+### 3. Initialize the project (if not already done)
+```bash
+appwrite init function
+```
 
-You can modify these parameters in the script:
-- `BASE_URL`: The starting URL to scrape
-- `max_pages`: Maximum number of pages to scrape (set to `None` for unlimited)
-- `delay_min` and `delay_max`: Min and max delay between requests (in seconds)
+### 4. Deploy the function
+```bash
+appwrite deploy function
+```
 
-## Output
+### 5. Important Notes
 
-The scraper will generate:
-- `property_listings.csv`: CSV file containing all the scraped property data
-- `scraper.log`: Log file with information about the scraping process
+- Make sure the function has all necessary files:
+  - appwrite_function.py (main entry point)
+  - improved_scraper.py
+  - extract_agent_info.py
+  - __init__.py
+  - requirements.txt
 
-## Ethical Considerations
+- The function requires a headless Chrome browser to be available in the serverless environment
+- The default timeout is set to 300 seconds (5 minutes)
 
-- This scraper is for educational purposes only
-- Always respect the website's `robots.txt` file and terms of service
-- Use reasonable delays between requests to avoid overloading the server
-- Do not use the extracted data for commercial purposes without permission
+## Usage
+
+The function accepts the following parameters:
+
+- `mode`: Either 'latest' or 'multiple'
+- `url`: The property listing website URL to scrape
+- `num_listings`: For 'multiple' mode, the number of listings to scrape (default: 10)
+
+Example request:
+```json
+{
+  "mode": "latest",
+  "url": "https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55"
+}
+```

@@ -1,0 +1,15 @@
+{
+    "projectId": "data-scraper-one",
+    "projectName": "Property Data Scraper",
+    "functions": [
+        {
+            "$id": "property-scraper-function",
+            "name": "Property Scraper",
+            "runtime": "python-3.10",
+            "execute": ["any"],
+            "timeout": 300,
+            "entrypoint": "appwrite_function.py",
+            "commands": "pip install -r requirements.txt"
+        }
+    ]
+}
