@@ -745,9 +745,15 @@ def extract_agent_contact_info(url, headless=False, timeout=30):
 # Helper function to add CORS headers to the response
 def add_cors_headers(res):
     """Add CORS headers to allow cross-origin requests"""
-    res.header('Access-Control-Allow-Origin', '*')
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    res.header('Access-Control-Allow-Headers', 'Content-Type')
+    try:
+        res.set_header('Access-Control-Allow-Origin', '*')
+        res.set_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        res.set_header('Access-Control-Allow-Headers', 'Content-Type')
+    except AttributeError:
+        if hasattr(res, 'headers'):
+            res.headers['Access-Control-Allow-Origin'] = '*'
+            res.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+            res.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return res
 
 def handle_scrape_multiple_listings(url, num_listings=10):
@@ -907,21 +913,24 @@ def setup_chrome_for_serverless():
 
 # Replace the original main with a renamed version for user logic
 def user_main(req, res):
-    # ...existing code from original main(req, res)...
     try:
         res = add_cors_headers(res)
         body = req.body or {}
         params = req.query or {}
         mode = body.get('mode') or params.get('mode', 'latest')
         url = body.get('url') or params.get('url', 'https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55')
-        # ...existing code for mode handling...
         if mode == 'multiple':
             num_listings = int(body.get('num_listings') or params.get('num_listings', 10))
             result = handle_scrape_multiple_listings(url, num_listings)
             if result.get('success', False):
                 if result.get('file_type') == 'excel' and 'file' in result:
-                    res.header('Content-Type', result['file']['type'])
-                    res.header('Content-Disposition', f"attachment; filename=\"{result['file']['name']}\"")
+                    try:
+                        res.set_header('Content-Type', result['file']['type'])
+                        res.set_header('Content-Disposition', f"attachment; filename=\"{result['file']['name']}\"")
+                    except AttributeError:
+                        if hasattr(res, 'headers'):
+                            res.headers['Content-Type'] = result['file']['type']
+                            res.headers['Content-Disposition'] = f"attachment; filename=\"{result['file']['name']}\""
                     return res.send(result['file']['data'], 200)
                 else:
                     return res.json(result)
