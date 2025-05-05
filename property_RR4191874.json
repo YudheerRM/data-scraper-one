@@ -1,0 +1,101 @@
+{
+  "url": "https://www.privateproperty.co.za/to-rent/western-cape/cape-town/bellville/oakglen/RR4191874",
+  "extracted_at": "2025-05-05 04:24:37",
+  "title": "2 Bedroom Apartment in Oakglen",
+  "price": "R 7 550",
+  "available_from": "01 Jun",
+  "property_details": {
+    "listing_number": "RR4191874",
+    "property_type": "Apartment",
+    "listing_date": "5 May 2025",
+    "floor_size": "53 m²"
+  },
+  "bedrooms": "2",
+  "bathrooms": "1",
+  "floor size": "53 m²",
+  "features": {
+    "Bedrooms": "2",
+    "Bathrooms": "1",
+    "Lounges": "1",
+    "Pool": true,
+    "Security post": true
+  },
+  "headline": "Cozy 2 Bedroom groundfloor, corner unit",
+  "description": "Available: 1 June 2025.* 2 bedrooms with carpets.* 1 Bathroom with bath & shower.* Lounge open plan to Kitchen. Stove installed 6 months ago.* 1 Covererd Parking bay & visitor parking bays available.* Security at the front gate.* Swimming pool in complex.* Prepaid electricity & water.* Fibre ready.You need to earn  R22 000 after deductions to qualify for this apartment. Single or combined.R22 950 payable before handover of keys.Deposit: R14 800Rental: R7400 & R150 administration fee = R7 550 pmContract fee: R750 once off, R375 renewal fee.Application Credit check fee: R115 p. p - Non Refundable.",
+  "images": [
+    {
+      "thumbnail": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-68880630_e.jpg",
+      "large": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-68880630_dhd.jpg"
+    },
+    {
+      "thumbnail": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-49725673_e.jpg",
+      "large": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-49725673_dhd.jpg"
+    },
+    {
+      "thumbnail": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-17234871_e.jpg",
+      "large": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-17234871_dhd.jpg"
+    },
+    {
+      "thumbnail": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-76038669_e.jpg",
+      "large": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-76038669_dhd.jpg"
+    },
+    {
+      "thumbnail": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-49240738_e.jpg",
+      "large": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-49240738_dhd.jpg"
+    },
+    {
+      "thumbnail": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-41886399_e.jpg",
+      "large": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-41886399_dhd.jpg"
+    },
+    {
+      "thumbnail": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-33186816_e.jpg",
+      "large": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-33186816_dhd.jpg"
+    },
+    {
+      "thumbnail": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-23894888_e.jpg",
+      "large": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-23894888_dhd.jpg"
+    },
+    {
+      "thumbnail": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-21485870_e.jpg",
+      "large": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-21485870_dhd.jpg"
+    }
+  ],
+  "agent": {},
+  "location": {
+    "path": [
+      "Cape Town",
+      "Bellville",
+      "Oakglen",
+      "RR4191874"
+    ],
+    "address": "Contact agent for street address"
+  },
+  "structured_data": {
+    "@context": "http://schema.org",
+    "@type": "Residence",
+    "photo": [
+      {
+        "@type": "ImageObject",
+        "contentUrl": "https://helium.privateproperty.co.za/live-za-images/property/486/11/10622486/images/property-10622486-68880630_dhd.jpg"
+      }
+    ],
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Oakglen, Bellville",
+      "addressRegion": "Western Cape"
+    },
+    "additionalProperty": [
+      {
+        "@type": "PropertyValue",
+        "name": "Bedrooms",
+        "value": "2"
+      },
+      {
+        "@type": "PropertyValue",
+        "name": "Bathrooms",
+        "value": "1"
+      }
+    ],
+    "url": "https://www.privateproperty.co.za/to-rent/western-cape/cape-town/bellville/oakglen/RR4191874"
+  }
+}

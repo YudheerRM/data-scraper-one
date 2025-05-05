@@ -1,0 +1,28 @@
+{
+  "target_url": "https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55",
+  "request_delay": {
+    "min_seconds": 2,
+    "max_seconds": 5
+  },
+  "max_pages": 5,
+  "output_file": "properties.json",
+  "selectors": {
+    "property_containers": [
+      ".property-card",
+      ".listing-item",
+      "[data-testid='property-card']",
+      ".result-card",
+      "div[itemtype='http://schema.org/Product']"
+    ]
+  },
+  "use_selenium_fallback": true,
+  "debug": {
+    "save_html": true,
+    "save_screenshots": true,
+    "verbose_logging": true
+  },
+  "proxy_settings": {
+    "use_proxy": false,
+    "proxy_list": []
+  }
+}

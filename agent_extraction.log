@@ -1,0 +1,34 @@
+2025-05-05 04:34:39,635 - INFO - Navigating to: https://www.privateproperty.co.za/to-rent/western-cape/cape-town/bellville/oakglen/RR4191874
+2025-05-05 04:34:47,217 - INFO - Page loaded, taking screenshot before clicking
+2025-05-05 04:34:47,331 - INFO - Looking for contact button with selector: .listing-details__contact-agent
+2025-05-05 04:34:47,522 - INFO - Found contact button: .listing-details__contact-agent
+2025-05-05 04:34:47,576 - INFO - Clicked contact button, waiting for info to appear...
+2025-05-05 04:34:50,771 - INFO - Found container: #contact-form-container
+2025-05-05 04:35:24,900 - INFO - Navigating to: https://www.privateproperty.co.za/to-rent/western-cape/cape-town/bellville/oakglen/RR4191874
+2025-05-05 04:35:31,923 - INFO - Page loaded, taking screenshot before clicking
+2025-05-05 04:35:32,133 - INFO - Looking for contact button with selector: .listing-details__contact-agent
+2025-05-05 04:35:32,146 - INFO - Found contact button: .listing-details__contact-agent
+2025-05-05 04:35:32,203 - INFO - Clicked contact button, waiting for info to appear...
+2025-05-05 04:35:35,462 - INFO - Found container: #contact-form-container
+2025-05-05 04:39:41,976 - INFO - Navigating to: https://www.privateproperty.co.za/to-rent/western-cape/cape-town/bellville/oakglen/RR4191874
+2025-05-05 04:39:48,646 - INFO - Page loaded, taking screenshot before clicking
+2025-05-05 04:39:48,856 - INFO - Looking for contact button with selector: button:contains('Show contact number')
+2025-05-05 04:39:48,867 - INFO - Looking for contact button with selector: .show-contact-number
+2025-05-05 04:39:48,873 - INFO - Looking for contact button with selector: button:contains('Show phone')
+2025-05-05 04:39:48,883 - INFO - Looking for contact button with selector: button:contains('Show number')
+2025-05-05 04:39:48,892 - INFO - Looking for contact button with selector: #no-add-message-agent
+2025-05-05 04:39:48,906 - INFO - Found contact button: #no-add-message-agent
+2025-05-05 04:39:49,974 - INFO - Clicked contact button, waiting for popup...
+2025-05-05 04:45:46,281 - INFO - Navigating to: https://www.privateproperty.co.za/to-rent/western-cape/cape-town/bellville/oakglen/RR4191874
+2025-05-05 04:45:52,932 - INFO - Page loaded, looking for contact button
+2025-05-05 04:45:53,167 - INFO - Found show contact number button by text content
+2025-05-05 04:45:54,299 - INFO - Clicked show contact number button by text content
+2025-05-05 04:46:00,521 - INFO - Found 1 potential modal dialogs
+2025-05-05 04:46:00,530 - INFO - Modal text: Contact Agent
+Krishca du Toit
+Mobile
+072 419 6285
+Work
+021 982 1860...
+2025-05-05 04:46:00,530 - INFO - Found phone numbers in modal: ['072 419 6285', '021 982 1860']
+2025-05-05 04:46:00,544 - ERROR - Error during extraction: name 'BeautifulSoup' is not defined
