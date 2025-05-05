@@ -627,14 +627,18 @@ def extract_agent_contact_info(url, headless=False, timeout=30):
 def add_cors_headers(res):
     """Add CORS headers to allow cross-origin requests"""
     try:
+        # Ensure headers are always applied, even if called multiple times
         res.set_header('Access-Control-Allow-Origin', '*')
         res.set_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        res.set_header('Access-Control-Allow-Headers', 'Content-Type')
+        res.set_header('Access-Control-Allow-Headers', 'Content-Type, *') # Allow any header
+        res.set_header('Access-Control-Expose-Headers', 'Content-Disposition') # Expose Content-Disposition for file downloads
     except AttributeError:
+        # Fallback for potential different response objects (like MockResponse)
         if hasattr(res, 'headers'):
             res.headers['Access-Control-Allow-Origin'] = '*'
             res.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-            res.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            res.headers['Access-Control-Allow-Headers'] = 'Content-Type, *'
+            res.headers['Access-Control-Expose-Headers'] = 'Content-Disposition'
     return res
 
 def handle_scrape_multiple_listings(url, num_listings=10):
@@ -794,11 +798,12 @@ def setup_chrome_for_serverless():
 
 # Replace the original main with a renamed version for user logic
 def user_main(req, res):
-    # ensure CORS headers are always set
+    # ensure CORS headers are always set FIRST
     res = add_cors_headers(res)
 
     # handle preflight
     if getattr(req, 'method', '').upper() == 'OPTIONS':
+        logger.info("Handling OPTIONS preflight request")
         return res.send('', 204)
 
     try:
@@ -811,23 +816,44 @@ def user_main(req, res):
             result = handle_scrape_multiple_listings(url, num_listings)
             if result.get('success', False):
                 if result.get('file_type') == 'excel' and 'file' in result:
+                    file_info = result['file']
+                    content_type = file_info['type']
+                    content_disposition = f"attachment; filename=\"{file_info['name']}\""
+                    
+                    logger.info(f"Setting file download headers: Content-Type={content_type}, Content-Disposition={content_disposition}")
+                    
                     try:
-                        res.set_header('Content-Type', result['file']['type'])
-                        res.set_header('Content-Disposition', f"attachment; filename=\"{result['file']['name']}\"")
+                        res.set_header('Content-Type', content_type)
+                        res.set_header('Content-Disposition', content_disposition)
                     except AttributeError:
                         if hasattr(res, 'headers'):
-                            res.headers['Content-Type'] = result['file']['type']
-                            res.headers['Content-Disposition'] = f"attachment; filename=\"{result['file']['name']}\""
-                    return res.send(result['file']['data'], 200)
+                            res.headers['Content-Type'] = content_type
+                            res.headers['Content-Disposition'] = content_disposition
+                            
+                    logger.info(f"Sending Excel file, size: {len(file_info['data'])} bytes")
+                    return res.send(file_info['data'], 200)
                 else:
+                    # Handle JSON fallback for multiple listings
+                    logger.info("Sending multiple listings result as JSON")
                     return res.json(result)
             else:
-                return res.json(result)
+                # Handle failure in scraping multiple listings
+                logger.warning(f"Multiple listings scrape failed: {result.get('message')}")
+                return res.json(result, 400) # Use 400 for client-side errors like bad URL/scrape fail
         else:
+            # Handle latest listing mode
             result = handle_get_latest_listing_with_contact(url)
-            return res.json(result)
+            if result.get('success', False):
+                 logger.info("Sending latest listing result as JSON")
+                 return res.json(result)
+            else:
+                 logger.warning(f"Latest listing scrape failed: {result.get('message')}")
+                 return res.json(result, 400)
+
     except Exception as e:
-        logger.error(f"Error in main function: {str(e)}")
+        logger.error(f"Error in main function: {str(e)}", exc_info=True) # Log traceback
+        # Ensure CORS headers are set even on server error
+        res = add_cors_headers(res)
         return res.json({
             "success": False,
             "message": f"Server error: {str(e)}"
