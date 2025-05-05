@@ -269,10 +269,16 @@ class ImprovedPropertyScraper:
                 price = elem.select_one('.property-price, .listing-price, .price')
                 location = elem.select_one('.property-location, .listing-location, .address')
                 
+                # Get the URL and ensure it's absolute
+                url = elem.get('href', '')
+                if url and not url.startswith('http'):
+                    url = f"https://www.privateproperty.co.za{url if url.startswith('/') else '/' + url}"
+                
                 property_data = {
                     'title': title.text.strip() if title else 'No Title',
                     'price': price.text.strip() if price else 'No Price',
                     'location': location.text.strip() if location else 'No Location',
+                    'url': url
                     # Add more fields as needed
                 }
                 
@@ -319,6 +325,11 @@ class ImprovedPropertyScraper:
                 agent_name = elem.select_one(f'.{prefix}__agent-name')
                 advertiser_info = elem.select_one(f'.{prefix}__advertiser')
                 
+                # Get the URL and ensure it's absolute
+                url = elem.get('href', '')
+                if url and not url.startswith('http'):
+                    url = f"https://www.privateproperty.co.za{url if url.startswith('/') else '/' + url}"
+                
                 # Create comprehensive property data
                 property_data = {
                     'title': title.text.strip() if title else 'No Title',
@@ -330,7 +341,7 @@ class ImprovedPropertyScraper:
                     'listing_type': listing_type,
                     'is_featured': is_featured,
                     'agent': agent_name.text.strip() if agent_name else '',
-                    'url': elem.get('href', '')
+                    'url': url
                 }
                 
                 self.properties.append(property_data)
@@ -371,7 +382,7 @@ class ImprovedPropertyScraper:
                 
             except Exception as e:
                 logger.error(f"Error extracting property data with Selenium: {str(e)}")
-                
+
     def extract_privateproperty_data_selenium(self, property_elements):
         """Extract property data from Selenium elements specific to privateproperty.co.za"""
         for elem in property_elements:
@@ -403,25 +414,30 @@ class ImprovedPropertyScraper:
                 listing_id = None
                 listing_type = None
                 wishlist_btn = elem.find_elements(By.CSS_SELECTOR, f'.{prefix}__wishlist-btn')
-                if wishlist_btn:
+                if wishlist_btn and len(wishlist_btn) > 0:
                     listing_id = wishlist_btn[0].get_attribute('data-listing-id')
                     listing_type = wishlist_btn[0].get_attribute('data-listing-type')
                 
                 # Extract agent or agency info
                 agent_name = elem.find_elements(By.CSS_SELECTOR, f'.{prefix}__agent-name')
                 
+                # Get URL and ensure it's absolute
+                url = elem.get_attribute('href') or ''
+                if url and not url.startswith('http'):
+                    url = f"https://www.privateproperty.co.za{url if url.startswith('/') else '/' + url}"
+                
                 # Create comprehensive property data
                 property_data = {
-                    'title': title[0].text.strip() if title else 'No Title',
-                    'price': price[0].text.strip() if price else 'No Price',
-                    'location': location[0].text.strip() if location else 'No Location',
-                    'description': description[0].text.strip() if description else '',
+                    'title': title[0].text.strip() if title and len(title) > 0 else 'No Title',
+                    'price': price[0].text.strip() if price and len(price) > 0 else 'No Price',
+                    'location': location[0].text.strip() if location and len(location) > 0 else 'No Location',
+                    'description': description[0].text.strip() if description and len(description) > 0 else '',
                     'features': features,
                     'listing_id': listing_id,
                     'listing_type': listing_type,
                     'is_featured': is_featured,
-                    'agent': agent_name[0].text.strip() if agent_name else '',
-                    'url': elem.get_attribute('href') or ''
+                    'agent': agent_name[0].text.strip() if agent_name and len(agent_name) > 0 else '',
+                    'url': url
                 }
                 
                 self.properties.append(property_data)
@@ -429,7 +445,7 @@ class ImprovedPropertyScraper:
                 
             except Exception as e:
                 logger.error(f"Error extracting Private Property data with Selenium: {str(e)}")
-    
+
     def save_properties(self):
         """Save the scraped properties to JSON file"""
         if not self.properties:
@@ -498,7 +514,7 @@ class ImprovedPropertyScraper:
                 return f"{current_url}&page={current_page + 1}"
         else:
             return f"{current_url}?page={current_page + 1}"
-    
+        
     def click_next_page_selenium(self, driver):
         """Click on the next page button using Selenium"""
         for selector in self.pagination_selectors:
@@ -511,7 +527,7 @@ class ImprovedPropertyScraper:
                         logger.info("Clicking on next page button")
                         next_buttons[0].click()
                         # Wait for page to load
-                        time.sleep(3)  
+                        time.sleep(3)
                         return True
             except Exception as e:
                 logger.debug(f"Error clicking next page with selector {selector}: {str(e)}")
@@ -557,7 +573,6 @@ class ImprovedPropertyScraper:
                     # Both scraping methods failed
                     retries += 1
                     logger.warning(f"Both scraping methods failed on page {page}, retry {retries}/{self.max_retries}")
-                    
                     if retries >= self.max_retries:
                         logger.error(f"Maximum retries reached for page {page}, moving to next page")
                         # Attempt to construct next page URL
@@ -612,7 +627,7 @@ def extract_agent_contact_info(url, headless=True, timeout=30):
                 "url": url,
                 "error": "Chromedriver not found or not executable",
             }
-
+        
         # Navigate to the page
         logger.info(f"Navigating to: {url}")
         driver.get(url)
@@ -632,8 +647,8 @@ def extract_agent_contact_info(url, headless=True, timeout=30):
         try:
             # Try different selectors for the contact button
             button_selectors = [
-                "//button[contains(text(), 'Show contact number')]",
-                "//button[contains(text(), 'Show number')]",
+                "//button[contains(text(), 'Show contact number')]",  # XPath
+                "//button[contains(text(), 'Show number')]",  # XPath
                 ".contact-agent-button",
                 ".listing-contact__show-number",
                 "button.btn.outline"
@@ -658,13 +673,12 @@ def extract_agent_contact_info(url, headless=True, timeout=30):
                         break
                 except Exception as btn_err:
                     logger.debug(f"Could not click button with selector {selector}: {btn_err}")
-        
+            
             # Now try to extract contact information
             # Look for phone numbers
             phone_pattern = re.compile(r'(?:\+\d{1,3}[-\.\s]?)?(?:\(?\d{3}\)?[-\.\s]?){1,2}\d{3,4}[-\.\s]?\d{3,4}')
             page_text = driver.page_source
             phone_matches = phone_pattern.findall(page_text)
-            
             if phone_matches:
                 # Filter to likely phone numbers and limit to first 3
                 contact_info['phone_numbers'] = [p for p in phone_matches if len(re.sub(r'\D', '', p)) >= 9][:3]
@@ -682,12 +696,13 @@ def extract_agent_contact_info(url, headless=True, timeout=30):
                 
         except Exception as e:
             logger.error(f"Error extracting contact info: {str(e)}")
-            
+        
         return contact_info
-            
+    
     except Exception as e:
         logger.error(f"Error during extraction: {str(e)}")
         return {"error": str(e), "url": url}
+    
     finally:
         if driver:
             driver.quit()
@@ -695,10 +710,8 @@ def extract_agent_contact_info(url, headless=True, timeout=30):
 def handle_get_latest_listing_with_contact(url):
     """
     Get the latest property listing with contact info
-    
     Args:
         url (str): URL of the property listings page
-        
     Returns:
         dict: Latest property listing with contact info
     """
@@ -727,8 +740,7 @@ def handle_get_latest_listing_with_contact(url):
         # If the property has a URL, get contact info
         if 'url' in latest_property and latest_property['url']:
             property_url = latest_property['url']
-            
-            # Make sure URL is absolute
+            # Make sure URL is absolute (already handled in extraction but double-check here)
             if not property_url.startswith('http'):
                 parsed_base = urlparse(url)
                 base_url = f"{parsed_base.scheme}://{parsed_base.netloc}"
@@ -758,13 +770,11 @@ def handle_get_latest_listing_with_contact(url):
         }
 
 def handle_scrape_multiple_listings(url, num_listings=10):
-    """
+    """ 
     Scrape multiple property listings
-    
     Args:
         url (str): URL of the property listings page
         num_listings (int): Number of listings to scrape
-        
     Returns:
         dict: Scraped property listings
     """
@@ -792,8 +802,11 @@ def handle_scrape_multiple_listings(url, num_listings=10):
                 "url": url
             }
         
-        # Limit to requested number
+        # Limit to requested number and ensure all URLs are absolute
         limited_properties = scraper.properties[:num_listings]
+        for prop in limited_properties:
+            if 'url' in prop and prop['url'] and not prop['url'].startswith('http'):
+                prop['url'] = f"https://www.privateproperty.co.za{prop['url'] if prop['url'].startswith('/') else '/' + prop['url']}"
         
         return {
             "success": True,
@@ -829,7 +842,7 @@ def main(context):
     if context.req.method.upper() == 'OPTIONS':
         context.log("Handling OPTIONS preflight request")
         return context.res.send('', 204, headers=cors_headers)
-
+    
     try:
         # Get parameters from query or body
         body = context.req.body or {}
@@ -845,10 +858,10 @@ def main(context):
             result = handle_scrape_multiple_listings(url, num_listings)
             return context.res.json(result, headers=cors_headers)
         else:
-            # Handle latest listing mode
+            # Handle latest listing mode        
             result = handle_get_latest_listing_with_contact(url)
             return context.res.json(result, headers=cors_headers)
-
+            
     except Exception as e:
         context.error(f"Error in main function: {str(e)}")
         return context.res.json({
@@ -873,7 +886,8 @@ if __name__ == "__main__":
             
         def header(self, key, value):
             self.headers[key] = value
-            
+            return self
+        
         def json(self, data, status=200):
             print(f"Response Status: {status}")
             print(f"Response Headers: {self.headers}")
@@ -881,7 +895,7 @@ if __name__ == "__main__":
             return data
             
         def send(self, data, status=200):
-            print(f"Sending file, Status: {status}")
+            print(f"Response Status: {status}")
             print(f"Response Headers: {self.headers}")
             print(f"File size: {len(data)} bytes")
             return data
@@ -891,7 +905,8 @@ if __name__ == "__main__":
     res = MockResponse()
     main(req, res)
     
-    # Test multiple listings now!
+    # Test multiple listings
     # req = MockRequest(mode='multiple', url='https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55', num_listings=5)
     # res = MockResponse()
     # main(req, res)
+```
