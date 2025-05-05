@@ -769,36 +769,34 @@ def setup_chrome_for_serverless():
     
 # Replace the original main with a renamed version for user logic
 def user_main(req, res):
-    # Ensure CORS headers are always set FIRST for OPTIONS and potential errors
-    res = add_cors_headers(res)
+    add_cors_headers(res)
 
     # handle preflight
     if getattr(req, 'method', '').upper() == 'OPTIONS':
         logger.info("Handling OPTIONS preflight request")
-        return add_cors_headers(res).send('', 204)  # Apply headers again before returning
+        add_cors_headers(res)
+        return res.send('', 204)
 
     try:
         body = req.body or {}
         params = req.query or {}
         mode = body.get('mode') or params.get('mode', 'latest')
         url = body.get('url') or params.get('url', 'https://www.privateproperty.co.za/to-rent/western-cape/cape-town/55')
-        
+
         if mode == 'multiple':
             num_listings = int(body.get('num_listings') or params.get('num_listings', 10))
             result = handle_scrape_multiple_listings(url, num_listings)
-            
-            # Always return JSON for multiple listings (includes base64 data if Excel)
-            logger.info("Sending multiple listings result as JSON")
-            return add_cors_headers(res).json(result)  # Apply headers again before returning
+            add_cors_headers(res)
+            return res.json(result)
         else:
-            # Handle latest listing mode
             result = handle_get_latest_listing_with_contact(url)
-            logger.info("Sending latest listing result as JSON")
-            return add_cors_headers(res).json(result)  # Apply headers again before returning
+            add_cors_headers(res)
+            return res.json(result)
 
     except Exception as e:
-        logger.error(f"Error in main function: {str(e)}", exc_info=True) 
-        return add_cors_headers(res).json({  # Apply headers again before returning
+        logger.error(f"Error in main function: {str(e)}", exc_info=True)
+        add_cors_headers(res)
+        return res.json({
             "success": False,
             "message": f"Server error: {str(e)}"
         }, 500)
